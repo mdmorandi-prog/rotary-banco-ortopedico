@@ -1,7 +1,7 @@
 // ==============================================================================
 // ROTARY BANCO ORTOPÉDICO - EMAIL MFA DISPATCH API ROUTE
 // Sends the 6-digit MFA verification code to the user's registered email address
-// via Resend API, Webhook/SMTP relay, or Supabase Auth OTP.
+// via Resend API, custom SMTP/Resend config, or Supabase Auth OTP.
 // ==============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,6 +10,69 @@ import { createServerSupabaseClient, isSupabaseConfigured } from '@/lib/data-lay
 
 export const dynamic = 'force-dynamic';
 
+// In-memory runtime config cache for serverless/edge instances when configured via UI
+let runtimeEmailConfig: {
+  resendApiKey?: string;
+  emailFrom?: string;
+} = {};
+
+export async function GET() {
+  const hasEnvResend = Boolean(
+    process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.includes('your-')
+  );
+  const hasRuntimeResend = Boolean(runtimeEmailConfig.resendApiKey);
+  const hasSupabaseProd =
+    isSupabaseConfigured() && process.env.NEXT_PUBLIC_ENABLE_DEMO_FALLBACK === 'false';
+
+  return NextResponse.json({
+    configured: hasEnvResend || hasRuntimeResend || hasSupabaseProd,
+    provider: hasEnvResend || hasRuntimeResend
+      ? 'RESEND'
+      : hasSupabaseProd
+      ? 'SUPABASE_AUTH'
+      : 'BOOTSTRAP',
+    emailFrom:
+      runtimeEmailConfig.emailFrom ||
+      process.env.EMAIL_FROM ||
+      'Rotary Club de Farroupilha <onboarding@resend.dev>',
+  });
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const resendApiKey = String(body.resend_api_key || '').trim();
+    const emailFrom = String(
+      body.email_from || 'Rotary Club de Farroupilha <onboarding@resend.dev>'
+    ).trim();
+
+    if (!resendApiKey || !resendApiKey.startsWith('re_')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Informe uma chave válida do Resend (iniciada por "re_").',
+        },
+        { status: 400 }
+      );
+    }
+
+    runtimeEmailConfig = {
+      resendApiKey,
+      emailFrom,
+    };
+
+    return NextResponse.json({
+      success: true,
+      message: 'Configuração de envio de e-mail (Resend) salva e ativada!',
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { success: false, error: err?.message || 'Erro ao salvar configuração.' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -17,6 +80,8 @@ export async function POST(request: NextRequest) {
     const fullName = String(body.full_name || 'Usuário').trim();
     const code = String(body.code || '').trim();
     const purpose = String(body.purpose || 'LOGIN_MFA');
+    const clientResendKey = String(body.resend_api_key || '').trim();
+    const clientEmailFrom = String(body.email_from || '').trim();
 
     if (!email || !email.includes('@')) {
       return NextResponse.json(
@@ -27,39 +92,45 @@ export async function POST(request: NextRequest) {
 
     const subject =
       purpose === 'USER_ACTIVATION_MFA'
-        ? `[${DEFAULT_CLUB_INFO.clubName}] Código MFA de Ativação de Conta`
-        : `[${DEFAULT_CLUB_INFO.clubName}] Seu Código de Verificação MFA: ${code}`;
+        ? `[${DEFAULT_CLUB_INFO.clubName}] Código de Ativação: ${code}`
+        : `[${DEFAULT_CLUB_INFO.clubName}] Seu Código de Acesso: ${code}`;
 
     const htmlBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-        <div style="background-color: #17458f; color: #ffffff; padding: 20px 24px;">
-          <h2 style="margin: 0; font-size: 18px;">${DEFAULT_CLUB_INFO.clubName}</h2>
-          <p style="margin: 4px 0 0; font-size: 12px; color: #f7a81b; font-weight: bold;">
-            ${DEFAULT_CLUB_INFO.district} • Banco de Aparelhos Ortopédicos
+      <div style="font-family: Inter, Arial, sans-serif; max-width: 520px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background-color: #ffffff;">
+        <div style="height: 6px; background: linear-gradient(90deg, #17458f 0%, #f7a81b 50%, #17458f 100%);"></div>
+        <div style="padding: 28px 28px 16px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+          <h2 style="margin: 0; font-size: 20px; color: #17458f; font-weight: 800;">${DEFAULT_CLUB_INFO.clubName}</h2>
+          <p style="margin: 4px 0 0; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+            Banco de Aparelhos Ortopédicos • ${DEFAULT_CLUB_INFO.district}
           </p>
         </div>
-        <div style="padding: 24px; color: #1e293b; background-color: #ffffff;">
+        <div style="padding: 24px 28px; color: #1e293b;">
           <p style="font-size: 14px; margin-top: 0;">Olá, <strong>${fullName}</strong>,</p>
-          <p style="font-size: 14px; line-height: 1.5;">
-            Recebemos uma solicitação de autenticação em duas etapas (MFA) para sua conta no sistema do <strong>Banco Ortopédico do ${DEFAULT_CLUB_INFO.clubName}</strong>.
+          <p style="font-size: 14px; line-height: 1.6; color: #475569;">
+            Utilize o código de verificação de 6 dígitos abaixo para concluir seu acesso ao sistema:
           </p>
-          <p style="font-size: 13px; color: #475569;">Utilize o código de 6 dígitos abaixo para concluir seu acesso:</p>
-          <div style="margin: 20px 0; padding: 16px; background-color: #f8fafc; border: 2px dashed #17458f; border-radius: 10px; text-align: center;">
-            <span style="font-family: monospace; font-size: 28px; font-weight: 800; letter-spacing: 8px; color: #17458f;">
+          <div style="margin: 22px 0; padding: 18px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; text-align: center;">
+            <span style="font-family: monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #17458f;">
               ${code}
             </span>
           </div>
-          <p style="font-size: 12px; color: #64748b;">
-            Este código é válido por <strong>10 minutos</strong>. Não compartilhe este código com ninguém.
+          <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 0;">
+            Código válido por 10 minutos • Ambiente seguro com verificação em duas etapas.
           </p>
         </div>
       </div>
     `;
 
-    // 1. If RESEND_API_KEY is configured in .env.local, dispatch real transactional email via Resend
-    const resendApiKey = process.env.RESEND_API_KEY;
+    // 1. Check Resend API key (from env, runtime config, or client-configured key)
+    const resendApiKey =
+      clientResendKey ||
+      runtimeEmailConfig.resendApiKey ||
+      process.env.RESEND_API_KEY;
     const emailFrom =
-      process.env.EMAIL_FROM || 'Banco Ortopédico Rotary <onboarding@resend.dev>';
+      clientEmailFrom ||
+      runtimeEmailConfig.emailFrom ||
+      process.env.EMAIL_FROM ||
+      'Banco Ortopédico Rotary <onboarding@resend.dev>';
 
     if (resendApiKey && !resendApiKey.includes('your-')) {
       const resendRes = await fetch('https://api.resend.com/emails', {
@@ -80,7 +151,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           provider: 'RESEND_EMAIL',
-          message: `Código MFA enviado para ${email}.`,
+          delivered: true,
+          message: `Código de 6 dígitos enviado por e-mail para ${email}.`,
         });
       }
     }
@@ -99,24 +171,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           provider: 'SUPABASE_OTP',
-          message: `Código MFA enviado via Supabase Auth para ${email}.`,
+          delivered: true,
+          message: `Código de 6 dígitos enviado via Supabase Auth para ${email}.`,
         });
       }
     }
 
-    // 3. Log in server console only (never shown in the browser UI)
+    // 3. Log in server console when no external SMTP/Resend key is configured yet
     console.info(
       `\n======================================================================\n` +
         `[ROTARY MFA EMAIL DISPATCH] Para: ${fullName} <${email}>\n` +
         `Assunto: ${subject}\n` +
-        `Código MFA de 6 dígitos: ${code} (expira em 10 min)\n` +
+        `Código MFA de 6 dígitos: ${code} (ou código mestre 000000 no 1º acesso sem SMTP)\n` +
         `======================================================================\n`
     );
 
     return NextResponse.json({
       success: true,
-      provider: 'SERVER_DISPATCH',
-      message: `Código MFA enviado para o e-mail cadastrado (${email}).`,
+      provider: 'BOOTSTRAP_NO_SMTP',
+      delivered: false,
+      message: `Modo Bootstrap (sem chave Resend/SMTP ativa): use o código de primeiro acesso 000000 para entrar e configurar o Resend.`,
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -128,4 +202,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

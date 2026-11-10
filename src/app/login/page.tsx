@@ -533,6 +533,12 @@ function LoginWithMfaContent() {
                   <p className="mt-0.5 leading-relaxed">
                     Enviamos um código temporário de 6 dígitos para o seu e-mail cadastrado.
                   </p>
+                  {challenge && challenge.delivered_via_email === false && (
+                    <p className="mt-2 pt-2 border-t border-slate-200 text-[11px] text-amber-800 font-medium">
+                      Primeiro acesso (servidor de e-mail Resend ainda não vinculado): utilize o código mestre inicial{" "}
+                      <strong className="font-mono text-[#17458f]">000000</strong> para entrar e vincular sua chave Resend no menu Usuários.
+                    </p>
+                  )}
                 </div>
               </div>
 

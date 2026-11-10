@@ -76,15 +76,49 @@ export default function UsersManagementPage() {
   const [mfaCodeInput, setMfaCodeInput] = useState("");
   const [verifyingMfa, setVerifyingMfa] = useState(false);
 
+  // Resend Email Configuration Modal State
+  const [emailConfigOpen, setEmailConfigOpen] = useState(false);
+  const [resendApiKey, setResendApiKey] = useState("");
+  const [emailFrom, setEmailFrom] = useState(
+    "Rotary Club de Farroupilha <noreply@vitalliz.com.br>"
+  );
+  const [savingEmailConfig, setSavingEmailConfig] = useState(false);
+
   const loadUsers = async () => {
     setLoading(true);
     try {
       const list = await authService.getUsers();
       setUsers(list);
+      const savedCfg = authService.getEmailProviderConfig();
+      if (savedCfg) {
+        setResendApiKey(savedCfg.resend_api_key || "");
+        if (savedCfg.email_from) setEmailFrom(savedCfg.email_from);
+      }
     } catch {
       toast.error("Erro ao carregar lista de usuários.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveEmailConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resendApiKey.trim().startsWith("re_")) {
+      toast.error('Informe uma chave válida do Resend iniciada por "re_".');
+      return;
+    }
+    setSavingEmailConfig(true);
+    try {
+      await authService.saveEmailProviderConfig({
+        resend_api_key: resendApiKey.trim(),
+        email_from: emailFrom.trim() || "Rotary Club de Farroupilha <onboarding@resend.dev>",
+      });
+      toast.success("Provedor de e-mail Resend vinculado e ativado com sucesso!");
+      setEmailConfigOpen(false);
+    } catch {
+      toast.error("Erro ao salvar configuração do Resend.");
+    } finally {
+      setSavingEmailConfig(false);
     }
   };
 
@@ -235,13 +269,24 @@ export default function UsersManagementPage() {
           </p>
         </div>
 
-        <Button
-          onClick={() => setCreateOpen(true)}
-          className="bg-rotary-gold text-rotary-blue hover:bg-amber-400 font-extrabold shadow-sm shrink-0 h-11 px-5"
-        >
-          <UserPlus className="w-4 h-4 mr-2 stroke-[2.5px]" />
-          Cadastrar Novo Usuário
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setEmailConfigOpen(true)}
+            className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white font-bold h-11 px-4"
+          >
+            <Mail className="w-4 h-4 mr-2 text-amber-300" />
+            {resendApiKey ? "Resend Configurado ✓" : "Configurar Resend (E-mail)"}
+          </Button>
+          <Button
+            onClick={() => setCreateOpen(true)}
+            className="bg-rotary-gold text-rotary-blue hover:bg-amber-400 font-extrabold shadow-sm shrink-0 h-11 px-5"
+          >
+            <UserPlus className="w-4 h-4 mr-2 stroke-[2.5px]" />
+            Cadastrar Novo Usuário
+          </Button>
+        </div>
       </div>
 
       {/* Security Summary KPI Cards */}
@@ -653,6 +698,70 @@ export default function UsersManagementPage() {
                 className="bg-rotary-blue hover:bg-[#0c2340] text-white font-bold text-xs"
               >
                 {verifyingMfa ? "Validando..." : "Validar Código MFA"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Configurar Resend (Envio de E-mails MFA) */}
+      <Dialog open={emailConfigOpen} onOpenChange={setEmailConfigOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rotary-blue font-extrabold">
+              <Mail className="w-5 h-5 text-rotary-gold" />
+              Configurar Envio de E-mail (Resend)
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600">
+              Vincule sua chave de API do <strong>Resend</strong> para envio automático dos códigos
+              de 6 dígitos (MFA) para o e-mail de cada usuário.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveEmailConfig} className="space-y-4 pt-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Chave de API do Resend (RESEND_API_KEY) *
+              </label>
+              <input
+                type="password"
+                required
+                value={resendApiKey}
+                onChange={(e) => setResendApiKey(e.target.value)}
+                placeholder="re_123456789_abcdefghijklmnop"
+                className="w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-rotary-blue"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Remetente (Domínio verificado ou onboarding@resend.dev)
+              </label>
+              <input
+                type="text"
+                required
+                value={emailFrom}
+                onChange={(e) => setEmailFrom(e.target.value)}
+                placeholder="Rotary Club de Farroupilha <noreply@vitalliz.com.br>"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-rotary-blue"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEmailConfigOpen(false)}
+                className="text-xs font-semibold"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={savingEmailConfig}
+                className="bg-rotary-blue hover:bg-[#0c2340] text-white font-bold text-xs"
+              >
+                {savingEmailConfig ? "Salvando..." : "Salvar e Ativar Resend"}
               </Button>
             </div>
           </form>
