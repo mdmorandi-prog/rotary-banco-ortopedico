@@ -1,0 +1,78 @@
+{
+  "name": "Rotary Club - Banco Ortopédico",
+  "short_name": "Banco Ortopédico",
+  "description": "Sistema de gestão e rastreabilidade de equipamentos ortopédicos do Rotary com comodato digital, QR Code e automação de renovações",
+  "start_url": "/dashboard",
+  "id": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#17458f",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["medical", "business", "utilities"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/rotary-wheel.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Escanear QR Code",
+      "short_name": "Escanear",
+      "description": "Leitor de QR Code para empréstimo e devolução",
+      "url": "/scan",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Novo Empréstimo",
+      "short_name": "Empréstimo",
+      "description": "Iniciar comodato com contrato e assinatura digital",
+      "url": "/loans/new",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Radar de Cobrança",
+      "short_name": "Radar",
+      "description": "Monitorar vencimentos e disparar WhatsApp",
+      "url": "/overdue",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Acervo de Equipamentos",
+      "short_name": "Acervo",
+      "description": "Catálogo completo e impressão de etiquetas",
+      "url": "/equipments",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

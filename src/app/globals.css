@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Base neutrals */
+    --background: 210 20% 98%;          /* #f8f9fa - Soft accessible slate background */
+    --foreground: 222.2 84% 4.9%;        /* #020817 - Deep charcoal text */
+
+    --card: 0 0% 100%;                  /* #ffffff - Pure white card surface */
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    /* Rotary Royal Blue (#17458f) -> HSL: 217 72% 33% */
+    --primary: 217 72% 33%;
+    --primary-foreground: 0 0% 100%;    /* Pure white on blue -> 9.34:1 contrast (WCAG AAA) */
+
+    /* Rotary Gold / Amarelo Ouro (#f7a81b) -> HSL: 39 93% 54% */
+    --secondary: 39 93% 54%;
+    --secondary-foreground: 217 72% 33%; /* Rotary blue on gold -> 4.71:1 contrast (WCAG AA) */
+
+    --muted: 210 40% 96.1%;             /* Light slate gray */
+    --muted-foreground: 215.4 16.3% 46.9%; /* Mid slate gray */
+
+    /* Accent uses Rotary Gold */
+    --accent: 39 93% 54%;
+    --accent-foreground: 217 72% 33%;
+
+    /* Status indicators */
+    --destructive: 0 84.2% 60.2%;       /* Red alert */
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 217 72% 33%;                /* Rotary Blue focus ring */
+
+    --radius: 0.625rem;                 /* 10px rounded corners */
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;       /* #020817 */
+    --foreground: 210 40% 98%;          /* #f8fafc */
+
+    --card: 222.2 84% 7%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 7%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Elevated brightness for primary in dark mode */
+    --primary: 217 72% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Rotary Gold in dark mode */
+    --secondary: 39 93% 54%;
+    --secondary-foreground: 217 72% 15%; /* Deep navy text on gold -> 7.15:1 contrast */
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 39 93% 54%;
+    --accent-foreground: 217 72% 15%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 39 93% 54%;                 /* Rotary Gold focus ring in dark mode */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Safe-area insets for mobile devices (iPhone notch & home indicator) */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 1rem);
+  }
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .mt-safe {
+    margin-top: env(safe-area-inset-top, 0px);
+  }
+  .min-h-safe {
+    min-height: calc(100vh - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
+  }
+  /* Touch target utility for mobile buttons */
+  .touch-target {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}
+
+/* Print Stylesheet for patrimonial labels, comodato contracts and receipts */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print,
+  nav,
+  header,
+  footer,
+  aside,
+  .demo-mode-banner {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+  @page {
+    margin: 8mm;
+    size: auto;
+  }
+  /* Avoid page break inside printable cards and labels */
+  .printable-card,
+  .printable-label {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
