@@ -45,7 +45,9 @@ export default function AcervoMapPage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "EM_DIA" | "D7" | "ATRASADO">("ALL");
+  const [statusFilter, setStatusFilter] = useState<
+    "ALL" | "EM_DIA" | "D7" | "ATRASADO" | "DEVOLVIDO"
+  >("ALL");
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
 
@@ -111,20 +113,33 @@ export default function AcervoMapPage() {
     };
   }, [fieldLoans]);
 
+  const returnedCount = useMemo(
+    () => loans.filter((l) => l.status === "DEVOLVIDO" || l.status === "CANCELADO").length,
+    [loans]
+  );
+
   // Filtered loans based on search and selected pills
   const filteredLoans = useMemo(() => {
     const nowDate = new Date();
-    return fieldLoans.filter((l) => {
-      const isOverdue = l.status === "ATRASADO" || new Date(l.expected_return_date) < nowDate;
+    const sourceList =
+      statusFilter === "DEVOLVIDO" || (statusFilter === "ALL" && fieldLoans.length === 0)
+        ? loans
+        : fieldLoans;
+
+    return sourceList.filter((l) => {
+      const isReturned = l.status === "DEVOLVIDO" || l.status === "CANCELADO";
+      const isOverdue =
+        l.status === "ATRASADO" || (!isReturned && new Date(l.expected_return_date) < nowDate);
       const daysUntil = Math.ceil(
         (new Date(l.expected_return_date).getTime() - nowDate.getTime()) / (1000 * 60 * 60 * 24)
       );
-      const isDueSoon = !isOverdue && daysUntil <= 7;
+      const isDueSoon = !isOverdue && !isReturned && daysUntil <= 7;
 
       // Status filter
-      if (statusFilter === "EM_DIA" && (isOverdue || isDueSoon)) return false;
-      if (statusFilter === "D7" && !isDueSoon) return false;
-      if (statusFilter === "ATRASADO" && !isOverdue) return false;
+      if (statusFilter === "EM_DIA" && (isOverdue || isDueSoon || isReturned)) return false;
+      if (statusFilter === "D7" && (!isDueSoon || isReturned)) return false;
+      if (statusFilter === "ATRASADO" && (!isOverdue || isReturned)) return false;
+      if (statusFilter === "DEVOLVIDO" && !isReturned) return false;
 
       // Category filter
       if (categoryFilter !== "ALL" && l.equipment?.category !== categoryFilter) return false;
@@ -149,7 +164,7 @@ export default function AcervoMapPage() {
 
       return true;
     });
-  }, [fieldLoans, statusFilter, categoryFilter, searchTerm]);
+  }, [loans, fieldLoans, statusFilter, categoryFilter, searchTerm]);
 
   const handleQuickWhatsApp = async (loan: Loan) => {
     try {
@@ -306,6 +321,18 @@ export default function AcervoMapPage() {
               >
                 🔴 Atrasados ({metrics.atrasados})
               </button>
+
+              <button
+                type="button"
+                onClick={() => setStatusFilter("DEVOLVIDO")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  statusFilter === "DEVOLVIDO"
+                    ? "bg-slate-700 text-white"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300"
+                }`}
+              >
+                ⚪ Devolvidos ({returnedCount})
+              </button>
             </div>
 
             <div className="flex items-center gap-2">
@@ -324,6 +351,24 @@ export default function AcervoMapPage() {
               </select>
             </div>
           </div>
+
+          {/* Info Banner when no active loans exist */}
+          {fieldLoans.length === 0 && (
+            <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-950 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
+                <span>
+                  <strong>Nenhum empréstimo ativo no momento</strong> (o seu empréstimo de teste já foi devolvido e quitado). Mostrando o histórico no mapa!
+                </span>
+              </div>
+              <Link
+                href="/loans/new"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#17458f] text-white text-xs font-bold hover:bg-[#0c2340] shrink-0"
+              >
+                <span>+ Cadastrar Empréstimo</span>
+              </Link>
+            </div>
+          )}
 
           {/* Interactive Map View */}
           <AcervoMap

@@ -58,7 +58,7 @@ export default function AcervoMap({
 
     // CartoDB Voyager High-Contrast Clean Tiles (100% Free Open Data)
     L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}{r}.png",
+      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
       {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
@@ -66,6 +66,11 @@ export default function AcervoMap({
         maxZoom: 19,
       }
     ).addTo(map);
+
+    // Call invalidateSize after render to ensure tiles paint properly
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
 
     const markersLayer = L.layerGroup().addTo(map);
     markersLayerRef.current = markersLayer;
@@ -130,19 +135,23 @@ export default function AcervoMap({
 
     // 2. Add Loan Markers
     const now = new Date();
-    const activeLoans = loans.filter(
-      (l) => l.status === "ATIVO" || l.status === "ATRASADO" || l.status === "RENOVADO"
-    );
 
-    activeLoans.forEach((loan) => {
+    loans.forEach((loan) => {
       const coords = resolveLoanCoordinates(loan);
       const isOverdue =
-        loan.status === "ATRASADO" || new Date(loan.expected_return_date) < now;
+        loan.status === "ATRASADO" ||
+        (loan.status !== "DEVOLVIDO" &&
+          loan.status !== "CANCELADO" &&
+          new Date(loan.expected_return_date) < now);
       const daysUntilReturn = Math.ceil(
         (new Date(loan.expected_return_date).getTime() - now.getTime()) /
           (1000 * 60 * 60 * 24)
       );
-      const isDueSoon = !isOverdue && daysUntilReturn <= 7;
+      const isDueSoon =
+        !isOverdue &&
+        loan.status !== "DEVOLVIDO" &&
+        loan.status !== "CANCELADO" &&
+        daysUntilReturn <= 7;
 
       // Color scheme
       let pinColor = "#10b981"; // Green (Em dia)
@@ -151,7 +160,13 @@ export default function AcervoMap({
       let statusBadgeBg = "#dcfce7";
       let statusBadgeText = "#166534";
 
-      if (isOverdue) {
+      if (loan.status === "DEVOLVIDO" || loan.status === "CANCELADO") {
+        pinColor = "#64748b"; // Grey (Devolvido)
+        pinBorder = "#334155";
+        statusLabel = "Devolvido (Quitado)";
+        statusBadgeBg = "#f1f5f9";
+        statusBadgeText = "#334155";
+      } else if (isOverdue) {
         pinColor = "#ef4444"; // Red (Atrasado)
         pinBorder = "#b91c1c";
         statusLabel = `Atrasado (${Math.abs(daysUntilReturn)}d)`;
@@ -304,3 +319,4 @@ export default function AcervoMap({
     </div>
   );
 }
+
