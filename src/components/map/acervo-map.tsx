@@ -56,16 +56,13 @@ export default function AcervoMap({
       zoomControl: true,
     });
 
-    // CartoDB Voyager High-Contrast Clean Tiles (100% Free Open Data)
-    L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-      {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        subdomains: "abcd",
-        maxZoom: 19,
-      }
-    ).addTo(map);
+    // OpenStreetMap Official Community Tiles (100% Free, Zero API Key Required)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+      subdomains: ["a", "b", "c"],
+      maxZoom: 19,
+    }).addTo(map);
 
     // Call invalidateSize after render to ensure tiles paint properly
     setTimeout(() => {
