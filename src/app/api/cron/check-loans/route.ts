@@ -1,17 +1,21 @@
 // ==============================================================================
 // ROTARY BANCO ORTOPÉDICO - DAILY CRON JOB (/api/cron/check-loans)
 // Evaluates D-7, D0, D+1, and D+7 rules across active and overdue loans,
-// transitions expired loans to ATRASADO, and dispatches/builds WhatsApp links.
+// transitions expired loans to ATRASADO in PostgreSQL, and dispatches WhatsApp
+// messages automatically via Evolution API v2 (with wa.me links as fallback).
 // ==============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { dataRepository } from '@/lib/data-layer/repository';
+import { isPostgresConfigured, pgDataService, getPgPool } from '@/lib/db/postgres';
+import { localStore } from '@/lib/mock-store/local-store';
 import { Loan } from '@/lib/data-layer/types';
 import {
   buildRenewalReminderWhatsAppLink,
   buildSecondaryContactWhatsAppLink,
-  sendWhatsAppNotification,
 } from '@/lib/whatsapp';
+import { sendViaEvolutionServer } from '@/app/api/whatsapp/evolution/route';
+
+export const dynamic = 'force-dynamic';
 
 export interface CronActionItem {
   loan_id: string;
@@ -41,8 +45,17 @@ function resolveReferenceNow(loans: Loan[]): Date {
 }
 
 async function runDailyLoanVerification(req: NextRequest) {
-  const origin = req.nextUrl?.origin || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const allLoans = await dataRepository.getLoans();
+  const origin =
+    req.nextUrl?.origin ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'https://rotary.vitalliz.com.br';
+
+  const usePg =
+    isPostgresConfigured() &&
+    process.env.NEXT_PUBLIC_ENABLE_DEMO_FALLBACK !== 'true';
+  const repo = usePg ? pgDataService : localStore;
+
+  const allLoans = await repo.getLoans();
   const activeOrOverdueLoans = allLoans.filter(
     (l) =>
       l.status === 'ATIVO' ||
@@ -62,29 +75,33 @@ async function runDailyLoanVerification(req: NextRequest) {
     const expected = new Date(loan.expected_return_date);
     const diffMs = expected.getTime() - refNow.getTime();
     const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    const daysOverdue = Math.floor((refNow.getTime() - expected.getTime()) / (1000 * 60 * 60 * 24));
+    const daysOverdue = Math.floor(
+      (refNow.getTime() - expected.getTime()) / (1000 * 60 * 60 * 24)
+    );
 
     const beneficiaryName = loan.beneficiary?.full_name || 'Beneficiário';
     const patrimony = loan.equipment?.patrimony_code || loan.equipment_id;
 
     // -------------------------------------------------------------------------
-    // Regra D-7: Faltam até 7 dias para o vencimento (1 a 7 dias restantes)
+    // Regra D-7: Faltam até 7 dias para o vencimento
     // -------------------------------------------------------------------------
     if (
       (loan.status === 'ATIVO' || loan.status === 'RENOVADO') &&
       daysRemaining > 0 &&
-      daysRemaining <= 20
+      daysRemaining <= 7
     ) {
       dMinus7Reminders += 1;
       const waPayload = buildRenewalReminderWhatsAppLink(loan, 'D-7', origin);
-      const sendRes = await sendWhatsAppNotification(waPayload.phone, waPayload.message);
+      const sendRes = await sendViaEvolutionServer(waPayload.phone, waPayload.message);
 
-      await dataRepository.addLoanEvent({
+      await repo.addLoanEvent({
         loan_id: loan.id,
         event_type: 'OVERDUE_NOTIFICATION',
         old_status: loan.status,
         new_status: loan.status,
-        notes: `[Cron D-7] Lembrete preventivo de renovação gerado com link /renovar/${loan.magic_token}.`,
+        notes: `[Cron D-7] Lembrete preventivo de renovação (${
+          sendRes.sentViaApi ? 'Enviado via Evolution API' : 'Link gerado'
+        }) com link /renovar/${loan.magic_token}.`,
       });
 
       actions.push({
@@ -109,14 +126,16 @@ async function runDailyLoanVerification(req: NextRequest) {
     ) {
       dZeroAlerts += 1;
       const waPayload = buildRenewalReminderWhatsAppLink(loan, 'D0', origin);
-      const sendRes = await sendWhatsAppNotification(waPayload.phone, waPayload.message);
+      const sendRes = await sendViaEvolutionServer(waPayload.phone, waPayload.message);
 
-      await dataRepository.addLoanEvent({
+      await repo.addLoanEvent({
         loan_id: loan.id,
         event_type: 'OVERDUE_NOTIFICATION',
         old_status: loan.status,
         new_status: loan.status,
-        notes: `[Cron D0] Alerta de vencimento no dia enviado ao beneficiário.`,
+        notes: `[Cron D0] Alerta de vencimento no dia (${
+          sendRes.sentViaApi ? 'Enviado via Evolution API' : 'Link gerado'
+        }).`,
       });
 
       actions.push({
@@ -141,12 +160,19 @@ async function runDailyLoanVerification(req: NextRequest) {
       // Se ainda estava ATIVO ou RENOVADO, transiciona para ATRASADO (Regra D+1)
       if (loan.status !== 'ATRASADO') {
         transitionedToOverdue += 1;
+        if (usePg) {
+          const pool = getPgPool();
+          await pool.query(
+            `UPDATE rotary.loans SET status = 'ATRASADO', updated_at = NOW() WHERE id = $1;`,
+            [loan.id]
+          );
+        }
         if (loan.equipment_id) {
-          await dataRepository.updateEquipment(loan.equipment_id, {
+          await repo.updateEquipment(loan.equipment_id, {
             status: 'ATRASADO',
           });
         }
-        await dataRepository.addLoanEvent({
+        await repo.addLoanEvent({
           loan_id: loan.id,
           event_type: 'STATUS_CHANGE',
           old_status: loan.status,
@@ -155,7 +181,7 @@ async function runDailyLoanVerification(req: NextRequest) {
         });
       }
 
-      // Regra D+7 (ou escalonamento de contato secundário para itens atrasados)
+      // Regra D+7 (Escalonamento para 2º Contato Obrigatório)
       if (effectiveDaysOverdue >= 5) {
         dPlus7Escalations += 1;
         const secPayload = buildSecondaryContactWhatsAppLink(
@@ -163,7 +189,7 @@ async function runDailyLoanVerification(req: NextRequest) {
           effectiveDaysOverdue,
           origin
         );
-        const sendRes = await sendWhatsAppNotification(
+        const sendRes = await sendViaEvolutionServer(
           secPayload.phone,
           secPayload.message
         );
@@ -181,12 +207,14 @@ async function runDailyLoanVerification(req: NextRequest) {
           loan.beneficiary?.secondary_contact_phone ||
           '';
 
-        await dataRepository.addLoanEvent({
+        await repo.addLoanEvent({
           loan_id: loan.id,
           event_type: 'OVERDUE_NOTIFICATION',
           old_status: 'ATRASADO',
           new_status: 'ATRASADO',
-          notes: `[Cron D+7] Escalonamento para 2º Contato Obrigatório: ${secName} (${secRelation}) - Tel: ${secPhone}.`,
+          notes: `[Cron D+7] Escalonamento para 2º Contato Obrigatório: ${secName} (${secRelation}) - Tel: ${secPhone} (${
+            sendRes.sentViaApi ? 'Enviado via Evolution API' : 'Link gerado'
+          }).`,
         });
 
         actions.push({
@@ -210,7 +238,7 @@ async function runDailyLoanVerification(req: NextRequest) {
           'OVERDUE',
           origin
         );
-        const sendRes = await sendWhatsAppNotification(
+        const sendRes = await sendViaEvolutionServer(
           overduePayload.phone,
           overduePayload.message
         );

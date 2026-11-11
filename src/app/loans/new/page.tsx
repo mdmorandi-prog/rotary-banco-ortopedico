@@ -44,6 +44,10 @@ import {
   validateSecondaryContact,
 } from '@/lib/validators';
 import {
+  buildCheckoutWhatsAppLink,
+  sendWhatsAppNotification,
+} from '@/lib/whatsapp';
+import {
   compressDocumentImage,
   createDemoDocumentDataUrl,
 } from '@/lib/image-compression';
@@ -518,6 +522,21 @@ function FastCheckoutWizardInner() {
       setCreatedLoan(loan);
       setStep(5);
       toast.success(`Comodato ${loan.loan_code} registrado com sucesso!`);
+
+      // Automatically send WhatsApp confirmation if Evolution API is connected
+      try {
+        const waPayload = buildCheckoutWhatsAppLink(loan);
+        sendWhatsAppNotification(waPayload.phone, waPayload.message).then((res) => {
+          if (res.sentViaApi) {
+            toast.success(
+              'Resumo do contrato e link de renovação enviados automaticamente no WhatsApp do beneficiário!'
+            );
+          }
+        });
+      } catch {
+        // Non-blocking
+      }
+
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao criar empréstimo.';

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { ensureRotarySchema, getPgPool, isPostgresConfigured } from '@/lib/db/postgres';
+import { ensureRotarySchema, getPgPool, isPostgresConfigured, pgDataService } from '@/lib/db/postgres';
 import { DEFAULT_CLUB_INFO } from '@/lib/constants';
 import { UserRole } from '@/lib/data-layer/types';
 
@@ -31,6 +31,14 @@ async function sendMfaEmail(params: {
   emailFrom?: string;
 }): Promise<boolean> {
   const { email, fullName, code, purpose, resendApiKey, emailFrom } = params;
+  let dbSettings: Record<string, string> = {};
+  if (isPostgresConfigured()) {
+    try {
+      dbSettings = await pgDataService.getSettings();
+    } catch {
+      // Ignore
+    }
+  }
   const subject =
     purpose === 'USER_ACTIVATION_MFA'
       ? `[${DEFAULT_CLUB_INFO.clubName}] Código de Ativação: ${code}`
@@ -62,6 +70,36 @@ async function sendMfaEmail(params: {
     </div>
   `;
 
+  // 1. Check Resend API key first (from client, PostgreSQL settings, or env)
+  const key = resendApiKey || dbSettings.resend_api_key || process.env.RESEND_API_KEY;
+  const from =
+    emailFrom ||
+    dbSettings.email_from ||
+    process.env.EMAIL_FROM ||
+    'Rotary Club de Farroupilha <onboarding@resend.dev>';
+
+  if (key && !key.includes('your-')) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from,
+          to: [email],
+          subject,
+          html: htmlBody,
+        }),
+      });
+      if (res.ok) return true;
+    } catch (err: any) {
+      console.error('Erro Resend em /api/auth/users:', err?.message);
+    }
+  }
+
+  // 2. Fallback to SMTP if configured
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
     try {
       const port = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -89,33 +127,6 @@ async function sendMfaEmail(params: {
       return true;
     } catch (err: any) {
       console.error('Erro SMTP em /api/auth/users:', err?.message);
-    }
-  }
-
-  const key = resendApiKey || process.env.RESEND_API_KEY;
-  const from =
-    emailFrom ||
-    process.env.EMAIL_FROM ||
-    'Rotary Club de Farroupilha <onboarding@resend.dev>';
-
-  if (key && !key.includes('your-')) {
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from,
-          to: [email],
-          subject,
-          html: htmlBody,
-        }),
-      });
-      if (res.ok) return true;
-    } catch (err: any) {
-      console.error('Erro Resend em /api/auth/users:', err?.message);
     }
   }
 

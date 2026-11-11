@@ -27,7 +27,9 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import {
   buildRenewalReminderWhatsAppLink,
   buildSecondaryContactWhatsAppLink,
+  sendWhatsAppNotification,
 } from '@/lib/whatsapp';
+import { EvolutionConfigDialog } from '@/components/whatsapp/evolution-config-dialog';
 
 interface CronExecutionResponse {
   ok: boolean;
@@ -84,6 +86,7 @@ export default function OverdueRadarPage() {
   const [runningCron, setRunningCron] = useState<boolean>(false);
   const [cronResult, setCronResult] = useState<CronExecutionResponse | null>(null);
   const [processingLoanId, setProcessingLoanId] = useState<string | null>(null);
+  const [evolutionOpen, setEvolutionOpen] = useState<boolean>(false);
 
   const loadLoans = useCallback(async () => {
     try {
@@ -156,24 +159,34 @@ export default function OverdueRadarPage() {
         : 'D-7';
 
     const payload = buildRenewalReminderWhatsAppLink(loan, stage);
+    const sendRes = await sendWhatsAppNotification(payload.phone, payload.message);
 
     await dataRepository.addLoanEvent({
       loan_id: loan.id,
       event_type: 'OVERDUE_NOTIFICATION',
       old_status: loan.status,
       new_status: loan.status,
-      notes: `Notificação WhatsApp (${stage}) enviada ao titular ${
+      notes: `Notificação WhatsApp (${stage}) enviada (${
+        sendRes.sentViaApi ? 'Automático via Evolution API' : 'Via link WhatsApp'
+      }) ao titular ${
         loan.beneficiary?.full_name || ''
       } com Magic Link de renovação (/renovar/${loan.magic_token}).`,
     });
 
-    toast.success(`Abrindo WhatsApp para ${loan.beneficiary?.full_name || 'Titular'}...`);
-    window.open(payload.url, '_blank', 'noopener,noreferrer');
+    if (sendRes.sentViaApi) {
+      toast.success(
+        `WhatsApp enviado automaticamente para ${loan.beneficiary?.full_name || 'Titular'} (Evolution API)!`
+      );
+    } else {
+      toast.success(`Abrindo WhatsApp para ${loan.beneficiary?.full_name || 'Titular'}...`);
+      window.open(payload.url, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const handleSecondaryContactWhatsApp = async (item: EvaluatedLoan) => {
     const { loan, daysOverdue } = item;
     const payload = buildSecondaryContactWhatsAppLink(loan, Math.max(1, daysOverdue));
+    const sendRes = await sendWhatsAppNotification(payload.phone, payload.message);
 
     const secName =
       loan.beneficiary?.secondary_name ||
@@ -189,13 +202,21 @@ export default function OverdueRadarPage() {
       event_type: 'OVERDUE_NOTIFICATION',
       old_status: loan.status,
       new_status: loan.status,
-      notes: `Acionamento de 2º Contato Obrigatório (${secName} - ${secRel}) via WhatsApp para recuperação ativa do item #${
+      notes: `Acionamento de 2º Contato Obrigatório (${secName} - ${secRel}) via WhatsApp (${
+        sendRes.sentViaApi ? 'Automático via Evolution API' : 'Via link WhatsApp'
+      }) para recuperação ativa do item #${
         loan.equipment?.patrimony_code || ''
       }.`,
     });
 
-    toast.success(`Acionando 2º Contato: ${secName} (${secRel}) no WhatsApp!`);
-    window.open(payload.url, '_blank', 'noopener,noreferrer');
+    if (sendRes.sentViaApi) {
+      toast.success(
+        `WhatsApp enviado automaticamente para 2º Contato: ${secName} (${secRel})!`
+      );
+    } else {
+      toast.success(`Acionando 2º Contato: ${secName} (${secRel}) no WhatsApp!`);
+      window.open(payload.url, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const handleQuickRenew = async (loan: Loan) => {
@@ -491,6 +512,14 @@ export default function OverdueRadarPage() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
             <button
               type="button"
+              onClick={() => setEvolutionOpen(true)}
+              className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm px-4 py-3.5 rounded-xl shadow-md transition cursor-pointer"
+            >
+              <MessageCircle className="w-4 h-4" />
+              WhatsApp Automático (Evolution)
+            </button>
+            <button
+              type="button"
               onClick={handleRunDailyCron}
               disabled={runningCron}
               className="inline-flex items-center justify-center gap-2.5 bg-[#f7a81b] hover:bg-[#e59400] text-[#0c2340] font-black text-sm sm:text-base px-5 py-3.5 rounded-xl shadow-lg transition disabled:opacity-60 cursor-pointer"
@@ -761,6 +790,8 @@ export default function OverdueRadarPage() {
           </section>
         </div>
       )}
+
+      <EvolutionConfigDialog open={evolutionOpen} onOpenChange={setEvolutionOpen} />
     </div>
   );
 }

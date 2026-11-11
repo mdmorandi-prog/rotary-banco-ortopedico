@@ -34,6 +34,7 @@ import {
   STATUS_LABELS,
 } from "@/lib/constants";
 import { cn, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { buildDischargeWhatsAppLink, sendWhatsAppNotification } from "@/lib/whatsapp";
 
 function sanitizeWhatsAppPhone(phone?: string): string {
   if (!phone) return "";
@@ -219,8 +220,17 @@ export default function ReturnTriagePage() {
 
       if (result.success) {
         const refreshed = await dataRepository.getLoanById(loan.id);
-        setCompletedLoan(refreshed || result.loan);
-        setLoan(refreshed || result.loan);
+        const finalLoan = refreshed || result.loan;
+        setCompletedLoan(finalLoan);
+        setLoan(finalLoan);
+
+        // Auto dispatch Discharge Receipt via WhatsApp if Evolution API is online
+        try {
+          const dischargePayload = buildDischargeWhatsAppLink(finalLoan);
+          sendWhatsAppNotification(dischargePayload.phone, dischargePayload.message);
+        } catch {
+          // Non-blocking
+        }
       } else {
         setErrorMsg(
           result.message ||

@@ -317,6 +317,14 @@ export async function ensureRotarySchema(): Promise<void> {
         );
       `);
 
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS rotary.settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `);
+
       // Seed basic equipments only if table is empty
       const { rows } = await client.query(`SELECT COUNT(*)::int AS cnt FROM rotary.equipments;`);
       if ((rows[0]?.cnt ?? 0) === 0) {
@@ -1122,6 +1130,30 @@ export const pgDataService = {
       performed_by: r.performed_by || undefined,
       created_at: new Date(r.created_at).toISOString(),
     };
+  },
+
+  async getSettings(): Promise<Record<string, string>> {
+    await ensureRotarySchema();
+    const pool = getPgPool();
+    const { rows } = await pool.query(`SELECT key, value FROM rotary.settings;`);
+    const map: Record<string, string> = {};
+    for (const r of rows) {
+      map[r.key] = r.value;
+    }
+    return map;
+  },
+
+  async setSettings(entries: Record<string, string>): Promise<void> {
+    await ensureRotarySchema();
+    const pool = getPgPool();
+    for (const [key, value] of Object.entries(entries)) {
+      await pool.query(
+        `INSERT INTO rotary.settings (key, value, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();`,
+        [key, String(value ?? '')]
+      );
+    }
   },
 };
 

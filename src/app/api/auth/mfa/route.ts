@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { DEFAULT_CLUB_INFO } from '@/lib/constants';
 import { createServerSupabaseClient, isSupabaseConfigured } from '@/lib/data-layer/supabase-client';
+import { isPostgresConfigured, pgDataService } from '@/lib/db/postgres';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,11 +18,20 @@ let runtimeEmailConfig: {
 } = {};
 
 export async function GET() {
+  let dbSettings: Record<string, string> = {};
+  if (isPostgresConfigured()) {
+    try {
+      dbSettings = await pgDataService.getSettings();
+    } catch {
+      // Ignore
+    }
+  }
   const hasSmtp = Boolean(
     process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS
   );
   const hasEnvResend = Boolean(
-    process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.includes('your-')
+    (process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.includes('your-')) ||
+      dbSettings.resend_api_key
   );
   const hasRuntimeResend = Boolean(runtimeEmailConfig.resendApiKey);
   const hasSupabaseProd =
@@ -29,14 +39,16 @@ export async function GET() {
 
   return NextResponse.json({
     configured: hasSmtp || hasEnvResend || hasRuntimeResend || hasSupabaseProd,
-    provider: hasSmtp
-      ? 'SMTP'
-      : hasEnvResend || hasRuntimeResend
-      ? 'RESEND'
-      : hasSupabaseProd
-      ? 'SUPABASE_AUTH'
-      : 'BOOTSTRAP',
+    provider:
+      hasEnvResend || hasRuntimeResend
+        ? 'RESEND'
+        : hasSmtp
+        ? 'SMTP'
+        : hasSupabaseProd
+        ? 'SUPABASE_AUTH'
+        : 'BOOTSTRAP',
     emailFrom:
+      dbSettings.email_from ||
       runtimeEmailConfig.emailFrom ||
       process.env.EMAIL_FROM ||
       process.env.SMTP_FROM ||
@@ -67,9 +79,16 @@ export async function PUT(request: NextRequest) {
       emailFrom,
     };
 
+    if (isPostgresConfigured()) {
+      await pgDataService.setSettings({
+        resend_api_key: resendApiKey,
+        email_from: emailFrom,
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Configuração de envio de e-mail (Resend) salva e ativada!',
+      message: 'Configuração de envio de e-mail (Resend) salva no banco de dados e ativada!',
     });
   } catch (err: any) {
     return NextResponse.json(

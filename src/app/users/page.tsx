@@ -37,6 +37,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { EvolutionConfigDialog } from "@/components/whatsapp/evolution-config-dialog";
+import { MessageCircle } from "lucide-react";
 
 const ROLE_LABELS: Record<UserRole, { label: string; color: string }> = {
   admin: {
@@ -78,6 +80,7 @@ export default function UsersManagementPage() {
 
   // Resend Email Configuration Modal State
   const [emailConfigOpen, setEmailConfigOpen] = useState(false);
+  const [evolutionConfigOpen, setEvolutionConfigOpen] = useState(false);
   const [resendApiKey, setResendApiKey] = useState("");
   const [emailFrom, setEmailFrom] = useState(
     "Rotary Club de Farroupilha <noreply@vitalliz.com.br>"
@@ -270,6 +273,15 @@ export default function UsersManagementPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setEvolutionConfigOpen(true)}
+            className="bg-emerald-600/20 border-emerald-400/40 text-white hover:bg-emerald-600/30 hover:text-white font-bold h-11 px-4"
+          >
+            <MessageCircle className="w-4 h-4 mr-2 text-emerald-300" />
+            WhatsApp Automático (Evolution)
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -767,6 +779,11 @@ export default function UsersManagementPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <EvolutionConfigDialog
+        open={evolutionConfigOpen}
+        onOpenChange={setEvolutionConfigOpen}
+      />
     </div>
   );
 }

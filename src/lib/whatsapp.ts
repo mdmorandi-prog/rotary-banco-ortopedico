@@ -236,10 +236,38 @@ export async function sendWhatsAppNotification(
   const fallbackUrl = createWaMeUrl(cleanedPhone, message);
   const timestamp = new Date().toISOString();
 
-  const apiUrl = process.env.WHATSAPP_API_URL;
-  const apiToken = process.env.WHATSAPP_API_TOKEN;
+  // If called from the browser, delegate to our internal Evolution API proxy route (/api/whatsapp/evolution)
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/whatsapp/evolution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send',
+          phone: cleanedPhone,
+          message,
+        }),
+      });
+      const data = await res.json();
+      return {
+        sentViaApi: Boolean(res.ok && data?.sentViaApi),
+        fallbackUrl,
+        timestamp,
+      };
+    } catch {
+      return {
+        sentViaApi: false,
+        fallbackUrl,
+        timestamp,
+      };
+    }
+  }
 
-  if (!apiUrl || apiUrl === 'undefined' || apiUrl.trim() === '') {
+  const rawApiUrl = process.env.EVOLUTION_API_URL || process.env.WHATSAPP_API_URL;
+  const apiToken = process.env.EVOLUTION_API_KEY || process.env.WHATSAPP_API_TOKEN;
+  const instanceName = process.env.EVOLUTION_INSTANCE_NAME || 'rotary-farroupilha';
+
+  if (!rawApiUrl || rawApiUrl === 'undefined' || rawApiUrl.trim() === '') {
     return {
       sentViaApi: false,
       fallbackUrl,
@@ -247,8 +275,12 @@ export async function sendWhatsAppNotification(
     };
   }
 
+  const normalizedUrl = rawApiUrl.includes('/message/sendText/')
+    ? rawApiUrl
+    : `${rawApiUrl.replace(/\/$/, '')}/message/sendText/${encodeURIComponent(instanceName)}`;
+
   try {
-    const response = await fetch(apiUrl, {
+    const response = await fetch(normalizedUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -264,6 +296,8 @@ export async function sendWhatsAppNotification(
         phone: cleanedPhone,
         text: message,
         message,
+        delay: 1000,
+        linkPreview: true,
       }),
     });
 
