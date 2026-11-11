@@ -83,6 +83,8 @@ export const dataRepository: IDataRepository = {
   notifyReturnIntent: (magic_token, intent, notes) =>
     getActiveRepo().notifyReturnIntent(magic_token, intent, notes),
   returnLoan: (loan_id, triage) => getActiveRepo().returnLoan(loan_id, triage),
+  updateLoanGps: (loan_id, lat, lng, accuracy) =>
+    getActiveRepo().updateLoanGps(loan_id, lat, lng, accuracy),
 
   releaseEquipment: (equipment_id, destination, notes) =>
     getActiveRepo().releaseEquipment(equipment_id, destination, notes),

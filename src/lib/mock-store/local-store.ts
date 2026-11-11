@@ -509,6 +509,25 @@ export class LocalStore implements IDataRepository {
     };
   }
 
+  async updateLoanGps(
+    loan_id: string,
+    lat: number,
+    lng: number,
+    accuracy?: number
+  ): Promise<boolean> {
+    this.init();
+    const loan = this.loans.find((l) => l.id === loan_id || l.magic_token === loan_id);
+    if (loan) {
+      loan.lat = lat;
+      loan.lng = lng;
+      loan.last_gps_at = new Date().toISOString();
+      loan.last_gps_accuracy = accuracy;
+      this.persist();
+      return true;
+    }
+    return false;
+  }
+
   // ----------------------------------------------------------------------------
   // Equipment Lifecycle / Maintenance Release
   // ----------------------------------------------------------------------------

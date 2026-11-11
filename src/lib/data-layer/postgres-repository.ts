@@ -101,6 +101,14 @@ export class PostgresRepository implements IDataRepository {
   returnLoan(loan_id: string, triage: ReturnLoanInput): Promise<ReturnLoanResult> {
     return callDbApi<ReturnLoanResult>('returnLoan', loan_id, triage);
   }
+  updateLoanGps(
+    loan_id: string,
+    lat: number,
+    lng: number,
+    accuracy?: number
+  ): Promise<boolean> {
+    return callDbApi<boolean>('updateLoanGps', loan_id, lat, lng, accuracy);
+  }
 
   releaseEquipment(
     equipment_id: string,

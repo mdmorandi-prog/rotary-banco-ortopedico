@@ -79,6 +79,23 @@ export default function PublicMagicRenewalPage() {
     };
   }, [magicToken]);
 
+  // Automated background GPS audit on renewal portal load
+  useEffect(() => {
+    if (!loan || !magicToken) return;
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          dataRepository
+            .updateLoanGps(magicToken, latitude, longitude, accuracy)
+            .catch(() => {});
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      );
+    }
+  }, [loan?.id, magicToken]);
+
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -122,6 +139,21 @@ export default function PublicMagicRenewalPage() {
       }
 
       setLoan(result.loan);
+
+      // Audit renewal location via device GPS
+      if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            dataRepository
+              .updateLoanGps(magicToken, latitude, longitude, accuracy)
+              .catch(() => {});
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 6000 }
+        );
+      }
+
       setRenewalSuccessMessage(
         result.message ||
           `Pronto! Empréstimo renovado por +30 dias até ${formatDate(

@@ -101,6 +101,11 @@ export async function POST(request: NextRequest) {
           ok: true,
           data: await pgDataService.addLoanEvent(args[0]),
         });
+      case 'updateLoanGps':
+        return NextResponse.json({
+          ok: true,
+          data: await pgDataService.updateLoanGps(args[0], args[1], args[2], args[3]),
+        });
 
       default:
         return NextResponse.json(

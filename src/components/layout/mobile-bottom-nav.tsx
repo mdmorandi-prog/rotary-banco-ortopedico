@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, QrCode, FileText, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, Package, QrCode, FileText, AlertTriangle, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -28,7 +28,7 @@ export function MobileBottomNav() {
 
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Início", icon: LayoutDashboard },
-    { href: "/equipments", label: "Acervo", icon: Package },
+    { href: "/map", label: "Mapa", icon: MapPin },
     { href: "/scan", label: "Escanear", icon: QrCode, isFab: true },
     { href: "/loans", label: "Empréstimos", icon: FileText },
     { href: "/overdue", label: "Radar", icon: AlertTriangle },

@@ -125,6 +125,10 @@ export interface Beneficiary {
   proof_of_residence_url?: string;
   notes?: string;
 
+  // Geographic coordinates for Map & Field Retrieval
+  lat?: number;
+  lng?: number;
+
   created_at: string;
   updated_at?: string;
 }
@@ -159,6 +163,12 @@ export interface Loan {
   quittance_issued?: boolean;
   quittance_issued_at?: string;
   discharge_receipt_url?: string;
+
+  // Geographic coordinates & GPS Check-in Audit
+  lat?: number;
+  lng?: number;
+  last_gps_at?: string;
+  last_gps_accuracy?: number;
 
   created_by?: string;
   created_at: string;
@@ -288,6 +298,7 @@ export interface IDataRepository {
     notes?: string
   ): Promise<{ success: boolean; message: string; loan?: Loan }>;
   returnLoan(loan_id: string, triage: ReturnLoanInput): Promise<ReturnLoanResult>;
+  updateLoanGps(loan_id: string, lat: number, lng: number, accuracy?: number): Promise<boolean>;
 
   // Metrics & State Machine Transitions
   getDashboardMetrics(): Promise<DashboardMetrics>;

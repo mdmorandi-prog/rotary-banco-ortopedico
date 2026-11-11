@@ -631,6 +631,26 @@ export class SupabaseRepository implements IDataRepository {
     };
   }
 
+  async updateLoanGps(
+    loan_id: string,
+    lat: number,
+    lng: number,
+    accuracy?: number
+  ): Promise<boolean> {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from('loans')
+      .update({
+        lat,
+        lng,
+        last_gps_at: new Date().toISOString(),
+        last_gps_accuracy: accuracy || null,
+      })
+      .or(`id.eq.${loan_id},magic_token.eq.${loan_id}`);
+
+    return !error;
+  }
+
   async releaseEquipment(
     equipment_id: string,
     destination: EquipmentStatus,

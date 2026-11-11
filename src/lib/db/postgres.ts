@@ -323,6 +323,14 @@ export async function ensureRotarySchema(): Promise<void> {
           value TEXT NOT NULL,
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
+
+        -- Safe Alter Migrations for GPS & Geolocation
+        ALTER TABLE rotary.loans ADD COLUMN IF NOT EXISTS lat NUMERIC(10,6);
+        ALTER TABLE rotary.loans ADD COLUMN IF NOT EXISTS lng NUMERIC(10,6);
+        ALTER TABLE rotary.loans ADD COLUMN IF NOT EXISTS last_gps_at TIMESTAMPTZ;
+        ALTER TABLE rotary.loans ADD COLUMN IF NOT EXISTS last_gps_accuracy NUMERIC(10,2);
+        ALTER TABLE rotary.beneficiaries ADD COLUMN IF NOT EXISTS lat NUMERIC(10,6);
+        ALTER TABLE rotary.beneficiaries ADD COLUMN IF NOT EXISTS lng NUMERIC(10,6);
       `);
 
       // Seed basic equipments only if table is empty
@@ -418,6 +426,8 @@ function mapBeneficiaryRow(row: any): Beneficiary {
     document_photo_url: row.document_photo_url || undefined,
     proof_of_residence_url: row.proof_of_residence_url || undefined,
     notes: row.notes || undefined,
+    lat: row.lat !== null && row.lat !== undefined ? Number(row.lat) : undefined,
+    lng: row.lng !== null && row.lng !== undefined ? Number(row.lng) : undefined,
     created_at: new Date(row.created_at).toISOString(),
     updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
   };
@@ -454,6 +464,13 @@ function mapLoanRow(row: any, equipment?: Equipment, beneficiary?: Beneficiary):
       ? new Date(row.quittance_issued_at).toISOString()
       : undefined,
     discharge_receipt_url: row.discharge_receipt_url || undefined,
+    lat: row.lat !== null && row.lat !== undefined ? Number(row.lat) : undefined,
+    lng: row.lng !== null && row.lng !== undefined ? Number(row.lng) : undefined,
+    last_gps_at: row.last_gps_at ? new Date(row.last_gps_at).toISOString() : undefined,
+    last_gps_accuracy:
+      row.last_gps_accuracy !== null && row.last_gps_accuracy !== undefined
+        ? Number(row.last_gps_accuracy)
+        : undefined,
     created_by: row.created_by || undefined,
     created_at: new Date(row.created_at).toISOString(),
     updated_at: new Date(row.updated_at).toISOString(),
@@ -1199,6 +1216,23 @@ export const pgDataService = {
         [key, String(value ?? '')]
       );
     }
+  },
+
+  async updateLoanGps(
+    loanId: string,
+    lat: number,
+    lng: number,
+    accuracy?: number
+  ): Promise<boolean> {
+    await ensureRotarySchema();
+    const pool = getPgPool();
+    await pool.query(
+      `UPDATE rotary.loans 
+       SET lat = $1, lng = $2, last_gps_at = NOW(), last_gps_accuracy = $3, updated_at = NOW() 
+       WHERE id = $4 OR magic_token = $4;`,
+      [lat, lng, accuracy || null, loanId]
+    );
+    return true;
   },
 };
 

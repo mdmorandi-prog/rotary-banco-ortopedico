@@ -13,6 +13,7 @@ import {
   Users,
   LogOut,
   ShieldCheck,
+  MapPin,
 } from "lucide-react";
 import { RotaryLogo } from "@/components/layout/rotary-logo";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -34,6 +35,7 @@ export function DesktopHeader() {
   const navLinks = [
     { href: "/dashboard", label: "Início", icon: LayoutDashboard },
     { href: "/equipments", label: "Acervo", icon: Package },
+    { href: "/map", label: "Mapa", icon: MapPin },
     { href: "/loans", label: "Empréstimos", icon: FileText },
     { href: "/overdue", label: "Radar", icon: AlertTriangle },
     { href: "/users", label: "Usuários & MFA", icon: Users },

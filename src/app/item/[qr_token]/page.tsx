@@ -67,6 +67,20 @@ export default function ContextualEquipmentItemPage({
         const loan = await dataRepository.getActiveLoanByEquipmentId(eq.id);
         setActiveLoan(loan);
 
+        // Quiet background GPS check-in audit on physical QR scan
+        if (loan && typeof window !== "undefined" && "geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const { latitude, longitude, accuracy } = pos.coords;
+              dataRepository
+                .updateLoanGps(loan.id, latitude, longitude, accuracy)
+                .catch(() => {});
+            },
+            () => {},
+            { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+          );
+        }
+
         const origin =
           typeof window !== "undefined"
             ? window.location.origin
