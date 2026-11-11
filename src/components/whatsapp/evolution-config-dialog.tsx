@@ -72,6 +72,10 @@ export function EvolutionConfigDialog({
   useEffect(() => {
     if (open) {
       fetchStatus();
+      const interval = setInterval(() => {
+        fetchStatus();
+      }, 3000);
+      return () => clearInterval(interval);
     }
   }, [open, fetchStatus]);
 

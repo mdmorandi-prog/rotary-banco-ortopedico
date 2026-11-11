@@ -82,3 +82,4 @@ echo " 3. Preencha URL: http://${PUBLIC_IP}:8080"
 echo " 4. Preencha API Key: rotary-evolution-2026"
 echo " 5. Clique em 'Salvar e Gerar QR Code do WhatsApp' e leia pelo celular!"
 echo "================================================================="
+
