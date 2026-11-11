@@ -262,7 +262,7 @@ export default function DischargeReceiptPage() {
               {DEFAULT_CLUB_INFO.clubName}
             </h1>
             <p className="text-xs text-blue-100">
-              {DEFAULT_CLUB_INFO.president} • {DEFAULT_CLUB_INFO.city} • Tel:{" "}
+              {DEFAULT_CLUB_INFO.address}, CEP {DEFAULT_CLUB_INFO.cep} • {DEFAULT_CLUB_INFO.city} • Tel:{" "}
               {DEFAULT_CLUB_INFO.contactPhone}
             </p>
           </div>

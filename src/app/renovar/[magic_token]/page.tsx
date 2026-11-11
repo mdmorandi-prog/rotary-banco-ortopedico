@@ -727,9 +727,20 @@ export default function PublicMagicRenewalPage() {
                       <div className="text-lg font-extrabold text-slate-900">
                         Sede do {DEFAULT_CLUB_INFO.clubName}
                       </div>
-                      <div className="text-base text-slate-700">
-                        {DEFAULT_CLUB_INFO.city}
+                      <div className="text-base font-semibold text-slate-800">
+                        {DEFAULT_CLUB_INFO.address}
                       </div>
+                      <div className="text-sm text-slate-600">
+                        CEP: {DEFAULT_CLUB_INFO.cep} • {DEFAULT_CLUB_INFO.city}
+                      </div>
+                      <a
+                        href="https://maps.google.com/?q=Rua+Nataly+Valentini,+75,+Farroupilha+-+RS"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-bold text-[#17458f] hover:underline mt-1.5"
+                      >
+                        📍 Abrir rota no Google Maps
+                      </a>
                     </div>
                   </div>
 

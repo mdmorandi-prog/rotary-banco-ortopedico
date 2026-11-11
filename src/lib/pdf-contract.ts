@@ -113,7 +113,7 @@ async function buildComodatoDoc(loan: Loan): Promise<jsPDF> {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(30, 41, 59);
-  const comodanteText = `${DEFAULT_CLUB_INFO.clubName} (${DEFAULT_CLUB_INFO.district}), representado por sua ${DEFAULT_CLUB_INFO.president}, sediado em ${DEFAULT_CLUB_INFO.city}, telefone de contato ${DEFAULT_CLUB_INFO.contactPhone}.`;
+  const comodanteText = `${DEFAULT_CLUB_INFO.clubName} (${DEFAULT_CLUB_INFO.district}), representado por sua ${DEFAULT_CLUB_INFO.president}, com sede na ${DEFAULT_CLUB_INFO.address}, CEP ${DEFAULT_CLUB_INFO.cep}, ${DEFAULT_CLUB_INFO.city}, telefone de contato ${DEFAULT_CLUB_INFO.contactPhone}.`;
   const comodanteLines = doc.splitTextToSize(comodanteText, contentWidth);
   doc.text(comodanteLines, margin, y);
   y += comodanteLines.length * 4.2 + 2.5;

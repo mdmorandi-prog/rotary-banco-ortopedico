@@ -16,9 +16,15 @@ export const ROTARY_BRAND = {
 export const DEFAULT_CLUB_INFO = {
   clubName: process.env.NEXT_PUBLIC_ROTARY_CLUB_NAME || "Rotary Club de Farroupilha",
   district: process.env.NEXT_PUBLIC_ROTARY_DISTRICT || "Distrito 4700",
+  address: process.env.NEXT_PUBLIC_ROTARY_ADDRESS || "Rua Nataly Valentini, 75",
+  cep: process.env.NEXT_PUBLIC_ROTARY_CEP || "95180-000",
   city: process.env.NEXT_PUBLIC_ROTARY_CITY || "Farroupilha - RS",
   contactPhone: process.env.NEXT_PUBLIC_CONTACT_PHONE || "(54) 99932-6259",
   president: process.env.NEXT_PUBLIC_ROTARY_PRESIDENT || "Comissão do Banco de Aparelhos Ortopédicos",
+  headquartersCoordinates: {
+    lat: -29.2241,
+    lng: -51.3435,
+  },
 };
 
 export const CATEGORY_LABELS: Record<string, string> = {
