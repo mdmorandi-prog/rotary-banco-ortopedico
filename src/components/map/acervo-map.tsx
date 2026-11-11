@@ -44,6 +44,10 @@ export default function AcervoMap({
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const [mapType, setMapType] = useState<"GOOGLE_STREET" | "GOOGLE_HYBRID" | "OSM">(
+    "GOOGLE_STREET"
+  );
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -56,13 +60,17 @@ export default function AcervoMap({
       zoomControl: true,
     });
 
-    // OpenStreetMap Official Community Tiles (100% Free, Zero API Key Required)
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
-      subdomains: ["a", "b", "c"],
-      maxZoom: 19,
-    }).addTo(map);
+    // Default to Google Maps Road (100% updated with all Farroupilha streets & numbers)
+    const googleTiles = L.tileLayer(
+      "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+      {
+        subdomains: ["0", "1", "2", "3"],
+        maxZoom: 20,
+        attribution:
+          '&copy; <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer">Google Maps</a>',
+      }
+    ).addTo(map);
+    tileLayerRef.current = googleTiles;
 
     // Call invalidateSize after render to ensure tiles paint properly
     setTimeout(() => {
@@ -78,6 +86,53 @@ export default function AcervoMap({
       mapInstanceRef.current = null;
     };
   }, []);
+
+  // Update Tile Layer when user switches layer type
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+
+    let newTileLayer: L.TileLayer;
+    if (mapType === "GOOGLE_HYBRID") {
+      newTileLayer = L.tileLayer(
+        "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+        {
+          subdomains: ["0", "1", "2", "3"],
+          maxZoom: 20,
+          attribution:
+            '&copy; <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer">Google Maps Satélite</a>',
+        }
+      );
+    } else if (mapType === "OSM") {
+      newTileLayer = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          subdomains: ["a", "b", "c"],
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>',
+        }
+      );
+    } else {
+      // Default: Google Maps Streets
+      newTileLayer = L.tileLayer(
+        "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+        {
+          subdomains: ["0", "1", "2", "3"],
+          maxZoom: 20,
+          attribution:
+            '&copy; <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer">Google Maps Oficial</a>',
+        }
+      );
+    }
+
+    newTileLayer.addTo(map);
+    tileLayerRef.current = newTileLayer;
+  }, [mapType]);
 
   // Update Markers when loans or selection changes
   useEffect(() => {
@@ -301,6 +356,48 @@ export default function AcervoMap({
   return (
     <div className="relative w-full h-[620px] rounded-2xl overflow-hidden border border-slate-300 shadow-md">
       <div ref={mapContainerRef} className="w-full h-full z-0" />
+
+      {/* Floating Map Layer Switcher */}
+      <div className="absolute top-3 right-3 z-[500] bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-1 shadow-lg flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setMapType("GOOGLE_STREET")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            mapType === "GOOGLE_STREET"
+              ? "bg-[#17458f] text-white shadow-xs"
+              : "text-slate-700 hover:bg-slate-100"
+          }`}
+          title="Mapa de Ruas Atualizado oficial Google Maps"
+        >
+          <span>🗺️ Google Ruas</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMapType("GOOGLE_HYBRID")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            mapType === "GOOGLE_HYBRID"
+              ? "bg-[#17458f] text-white shadow-xs"
+              : "text-slate-700 hover:bg-slate-100"
+          }`}
+          title="Visão de Satélite em Alta Resolução Google Maps"
+        >
+          <span>🛰️ Satélite</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMapType("OSM")}
+          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            mapType === "OSM"
+              ? "bg-[#17458f] text-white shadow-xs"
+              : "text-slate-700 hover:bg-slate-100"
+          }`}
+          title="OpenStreetMap Comunitário"
+        >
+          <span>🌐 OSM</span>
+        </button>
+      </div>
 
       {/* Floating Map Legend */}
       <div className="absolute bottom-4 left-4 z-[500] bg-white/95 backdrop-blur-sm border border-slate-200 rounded-xl p-3 shadow-lg text-xs space-y-1.5 pointer-events-auto">

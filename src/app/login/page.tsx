@@ -14,8 +14,6 @@ import {
   EyeOff,
   Mail,
   AlertCircle,
-  UserPlus,
-  Phone,
 } from "lucide-react";
 import { authService, MfaChallenge } from "@/lib/auth/auth-service";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -29,19 +27,12 @@ function LoginWithMfaContent() {
   const prefilledUser = searchParams.get("user") || searchParams.get("email") || "";
   const { refreshSession } = useAuth();
 
-  const [step, setStep] = useState<"CREDENTIALS" | "FIRST_ACCESS" | "MFA_CODE">(
+  const [step, setStep] = useState<"CREDENTIALS" | "MFA_CODE">(
     "CREDENTIALS"
   );
   const [identifier, setIdentifier] = useState(prefilledUser);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
-  // First-access admin registration fields
-  const [fullName, setFullName] = useState("");
-  const [newUsername, setNewUsername] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [newPhone, setNewPhone] = useState("");
-  const [newPassword, setNewPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,43 +69,6 @@ function LoginWithMfaContent() {
       setStep("MFA_CODE");
       toast.success(
         `Credenciais validadas! Código de acesso enviado para ${res.challenge.masked_email}.`
-      );
-
-      setTimeout(() => {
-        inputRefs.current[0]?.focus();
-      }, 100);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFirstAccessSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      const res = await authService.createUserAndSendMfa({
-        full_name: fullName,
-        username: newUsername,
-        email: newEmail,
-        phone: newPhone || "(54) 99999-0000",
-        password: newPassword,
-        role: "admin",
-      });
-
-      if (!res.success || !res.challenge) {
-        setError(res.error || "Não foi possível criar o usuário administrador.");
-        toast.error(res.error || "Falha ao cadastrar usuário.");
-        return;
-      }
-
-      setChallenge(res.challenge);
-      setIdentifier(newUsername.trim().toLowerCase());
-      setDigits(["", "", "", "", "", ""]);
-      setStep("MFA_CODE");
-      toast.success(
-        `Conta criada! Código de verificação enviado para ${res.challenge.masked_email}.`
       );
 
       setTimeout(() => {
@@ -255,17 +209,6 @@ function LoginWithMfaContent() {
             </>
           )}
 
-          {step === "FIRST_ACCESS" && (
-            <>
-              <h1 className="text-xl font-bold text-slate-900">
-                Primeiro Acesso
-              </h1>
-              <p className="text-sm text-slate-500 mt-1 mb-6">
-                Cadastre seu usuário administrador e e-mail para receber o código de ativação.
-              </p>
-            </>
-          )}
-
           {step === "MFA_CODE" && (
             <>
               <h1 className="text-xl font-bold text-slate-900">
@@ -373,152 +316,6 @@ function LoginWithMfaContent() {
                 )}
               </button>
 
-              <div className="pt-3 text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setStep("FIRST_ACCESS");
-                  }}
-                  className="text-xs font-medium text-slate-500 hover:text-[#17458f] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <UserPlus className="w-3.5 h-3.5 text-[#17458f]" />
-                  <span>Primeiro acesso? Cadastrar Administrador</span>
-                </button>
-              </div>
-            </form>
-          )}
-
-          {step === "FIRST_ACCESS" && (
-            <form onSubmit={handleFirstAccessSubmit} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Nome Completo
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Ex: Daniel Morandi"
-                    className="w-full h-11 pl-10 pr-4 text-sm text-slate-900 rounded-lg border border-slate-200 bg-slate-50/50 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#17458f]/20 focus:border-[#17458f]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                    Usuário de Login
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newUsername}
-                    onChange={(e) =>
-                      setNewUsername(e.target.value.replace(/\s+/g, "").toLowerCase())
-                    }
-                    placeholder="Ex: daniel.morandi"
-                    className="w-full h-11 px-3.5 text-sm text-slate-900 rounded-lg border border-slate-200 bg-slate-50/50 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#17458f]/20 focus:border-[#17458f]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                    WhatsApp / Telefone
-                  </label>
-                  <div className="relative">
-                    <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="text"
-                      value={newPhone}
-                      onChange={(e) => setNewPhone(e.target.value)}
-                      placeholder="(54) 99999-0000"
-                      className="w-full h-11 pl-9 pr-3 text-sm text-slate-900 rounded-lg border border-slate-200 bg-slate-50/50 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#17458f]/20 focus:border-[#17458f]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                  E-mail (para receber o código de acesso)
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="email"
-                    required
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="seu.email@exemplo.com.br"
-                    className="w-full h-11 pl-10 pr-4 text-sm text-slate-900 rounded-lg border border-slate-200 bg-slate-50/50 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#17458f]/20 focus:border-[#17458f]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Definir Senha
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    minLength={6}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Mínimo de 6 caracteres"
-                    className="w-full h-11 pl-10 pr-10 text-sm text-slate-900 rounded-lg border border-slate-200 bg-slate-50/50 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#17458f]/20 focus:border-[#17458f]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="h-11 rounded-lg font-semibold text-white bg-[#17458f] hover:bg-[#123670] shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center gap-2 w-full mt-2 disabled:opacity-60 cursor-pointer"
-              >
-                {loading ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Criando conta e enviando código...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Cadastrar e Receber Código</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-
-              <div className="pt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setStep("CREDENTIALS");
-                  }}
-                  className="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-                >
-                  ← Já possui cadastro? Voltar para o login
-                </button>
-              </div>
             </form>
           )}
 
@@ -533,12 +330,6 @@ function LoginWithMfaContent() {
                   <p className="mt-0.5 leading-relaxed">
                     Enviamos um código temporário de 6 dígitos para o seu e-mail cadastrado.
                   </p>
-                  {challenge && challenge.delivered_via_email === false && (
-                    <p className="mt-2 pt-2 border-t border-slate-200 text-[11px] text-amber-800 font-medium">
-                      Primeiro acesso (servidor de e-mail Resend ainda não vinculado): utilize o código mestre inicial{" "}
-                      <strong className="font-mono text-[#17458f]">000000</strong> para entrar e vincular sua chave Resend no menu Usuários.
-                    </p>
-                  )}
                 </div>
               </div>
 
