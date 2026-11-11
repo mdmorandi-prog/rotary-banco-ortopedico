@@ -70,6 +70,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true, data: await pgDataService.createLoan(args[0]) });
       case 'renewLoan':
         return NextResponse.json({ ok: true, data: await pgDataService.renewLoan(args[0]) });
+      case 'notifyReturnIntent':
+        return NextResponse.json({
+          ok: true,
+          data: await pgDataService.notifyReturnIntent(args[0], args[1], args[2]),
+        });
       case 'returnLoan':
         return NextResponse.json({
           ok: true,

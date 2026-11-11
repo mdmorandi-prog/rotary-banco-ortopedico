@@ -438,6 +438,28 @@ export class LocalStore implements IDataRepository {
     };
   }
 
+  async notifyReturnIntent(
+    magic_token: string,
+    intent: 'SEDE' | 'COLETA',
+    notes?: string
+  ): Promise<{ success: boolean; message: string; loan?: Loan }> {
+    const loan = this.loans.find((l) => l.magic_token === magic_token);
+    if (!loan) {
+      return { success: false, message: 'Empréstimo não encontrado.' };
+    }
+    const noteText =
+      intent === 'SEDE'
+        ? `[AVISO DE DEVOLUÇÃO NA SEDE] Beneficiário informou que levará o equipamento à sede.${notes ? ` Obs: "${notes}".` : ''}`
+        : `[SOLICITAÇÃO DE COLETA EM DOMICÍLIO] Beneficiário solicitou busca em casa.${notes ? ` Obs: "${notes}".` : ''}`;
+    loan.return_notes = noteText;
+    this.persist();
+    return {
+      success: true,
+      loan: this.hydrateLoan(loan),
+      message: 'Intenção de devolução registrada com sucesso!',
+    };
+  }
+
   async returnLoan(loan_id: string, triage: ReturnLoanInput): Promise<ReturnLoanResult> {
     this.init();
     const loan = this.loans.find((l) => l.id === loan_id);

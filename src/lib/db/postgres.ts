@@ -951,6 +951,51 @@ export const pgDataService = {
     };
   },
 
+  async notifyReturnIntent(
+    magic_token: string,
+    intent: 'SEDE' | 'COLETA',
+    notes?: string
+  ): Promise<{ success: boolean; message: string; loan?: Loan }> {
+    await ensureRotarySchema();
+    const loan = await this.getLoanByMagicToken(magic_token);
+    if (!loan) {
+      return { success: false, message: 'Empréstimo não encontrado.' };
+    }
+
+    const nowFormatted = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const noteText =
+      intent === 'SEDE'
+        ? `[AVISO DE DEVOLUÇÃO NA SEDE] Beneficiário avisou em ${nowFormatted} que levará o equipamento à sede do Rotary.${notes ? ` Obs: "${notes}".` : ''}`
+        : `[SOLICITAÇÃO DE COLETA EM DOMICÍLIO] Beneficiário solicitou retirada domiciliar em ${nowFormatted}.${notes ? ` Obs: "${notes}".` : ''}`;
+
+    const pool = getPgPool();
+    await pool.query(
+      `UPDATE rotary.loans SET
+        return_notes = $2,
+        updated_at = NOW()
+      WHERE id = $1;`,
+      [loan.id, noteText]
+    );
+
+    await this.addLoanEvent({
+      loan_id: loan.id,
+      event_type: 'STATUS_CHANGE',
+      old_status: loan.status,
+      new_status: loan.status,
+      notes: noteText,
+    });
+
+    const updated = await this.getLoanById(loan.id);
+    return {
+      success: true,
+      loan: updated || undefined,
+      message:
+        intent === 'SEDE'
+          ? 'Aviso de entrega registrado com sucesso! Nossos voluntários aguardam o equipamento na sede do Rotary.'
+          : 'Solicitação de coleta registrada com sucesso! Nossos voluntários entrarão em contato para combinar a retirada.',
+    };
+  },
+
   async returnLoan(loan_id: string, triage: ReturnLoanInput): Promise<ReturnLoanResult> {
     await ensureRotarySchema();
     const loan = await this.getLoanById(loan_id);

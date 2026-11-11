@@ -587,6 +587,14 @@ export class SupabaseRepository implements IDataRepository {
     return localStore.renewLoan(magic_token);
   }
 
+  async notifyReturnIntent(
+    magic_token: string,
+    intent: 'SEDE' | 'COLETA',
+    notes?: string
+  ): Promise<{ success: boolean; message: string; loan?: Loan }> {
+    return localStore.notifyReturnIntent(magic_token, intent, notes);
+  }
+
   async returnLoan(loan_id: string, triage: ReturnLoanInput): Promise<ReturnLoanResult> {
     const supabase = getSupabaseClient();
     const nowIso = new Date().toISOString();

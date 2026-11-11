@@ -373,6 +373,18 @@ export default function LoansListPage() {
                         {LOAN_STATUS_LABELS[loan.status] || loan.status}
                       </span>
 
+                      {/* Return Intent Badges */}
+                      {loan.return_notes?.includes('[AVISO DE DEVOLUÇÃO NA SEDE]') && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                          🏢 Avisou Entrega na Sede
+                        </span>
+                      )}
+                      {loan.return_notes?.includes('[SOLICITAÇÃO DE COLETA') && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-[#17458f] border border-blue-300">
+                          🚚 Solicitou Retirada em Casa
+                        </span>
+                      )}
+
                       {/* Protocol Code */}
                       <span className="font-mono text-xs font-bold px-2.5 py-1 rounded bg-slate-200/75 text-slate-800">
                         Protocolo: {loan.loan_code}

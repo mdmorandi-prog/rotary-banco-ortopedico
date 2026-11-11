@@ -282,6 +282,11 @@ export interface IDataRepository {
   getActiveLoanByEquipmentId(equipment_id: string): Promise<Loan | null>;
   createLoan(data: CreateLoanInput): Promise<Loan>;
   renewLoan(magic_token: string): Promise<RenewLoanResult>;
+  notifyReturnIntent(
+    magic_token: string,
+    intent: 'SEDE' | 'COLETA',
+    notes?: string
+  ): Promise<{ success: boolean; message: string; loan?: Loan }>;
   returnLoan(loan_id: string, triage: ReturnLoanInput): Promise<ReturnLoanResult>;
 
   // Metrics & State Machine Transitions

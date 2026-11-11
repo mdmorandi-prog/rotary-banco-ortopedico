@@ -313,6 +313,16 @@ export default function OverdueRadarPage() {
               >
                 {LOAN_STATUS_LABELS[loan.status] || loan.status}
               </span>
+              {loan.return_notes?.includes('[AVISO DE DEVOLUÇÃO NA SEDE]') && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                  🏢 Avisou Entrega na Sede
+                </span>
+              )}
+              {loan.return_notes?.includes('[SOLICITAÇÃO DE COLETA') && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-[#17458f] border border-blue-300">
+                  🚚 Solicitou Retirada em Casa
+                </span>
+              )}
             </div>
             <h3 className="text-lg sm:text-xl font-extrabold text-slate-900">
               {eq?.name || 'Equipamento Ortopédico'}{' '}

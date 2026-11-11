@@ -82,9 +82,10 @@ export function buildCheckoutWhatsAppLink(
     `• *Código do Contrato:* ${loan.loan_code}\n` +
     `• *Valor de Referência:* ${replacementVal}\n` +
     `• *Previsão de Devolução/Renovação:* ${returnDate}\n\n` +
-    `🔗 *Precisa prorrogar o prazo ou informar devolução?* Acesse seu Portal Rápido (sem senha) a qualquer momento:\n` +
+    `📄 *Contrato Assinado (2ª via em PDF):*\n` +
+    `Para visualizar e baixar o seu Termo de Comodato assinado em PDF, ou para renovar o prazo em 1 clique, acesse seu portal exclusivo:\n` +
     `${renewalUrl}\n\n` +
-    `Desejamos uma excelente e rápida recuperação! Em caso de dúvidas, responda esta mensagem.`;
+    `Desejamos uma excelente e rápida recuperação! Em caso de dúvidas, fale conosco pelo WhatsApp: ${DEFAULT_CLUB_INFO.contactPhone}.`;
 
   return {
     phone,

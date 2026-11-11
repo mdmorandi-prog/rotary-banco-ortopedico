@@ -19,6 +19,8 @@ import {
   HeartHandshake,
   Info,
   ArrowLeft,
+  FileText,
+  Building2,
 } from 'lucide-react';
 import { dataRepository } from '@/lib/data-layer/repository';
 import { Loan } from '@/lib/data-layer/types';
@@ -29,6 +31,7 @@ import {
 } from '@/lib/constants';
 import { formatDate } from '@/lib/utils';
 import { cleanPhoneForWhatsApp, createWaMeUrl } from '@/lib/whatsapp';
+import { generateComodatoContractPDF } from '@/lib/pdf-contract';
 
 export default function PublicMagicRenewalPage() {
   const params = useParams<{ magic_token: string }>();
@@ -40,6 +43,7 @@ export default function PublicMagicRenewalPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [renewing, setRenewing] = useState<boolean>(false);
   const [requestingPickup, setRequestingPickup] = useState<boolean>(false);
+  const [notifyingSede, setNotifyingSede] = useState<boolean>(false);
 
   // Elder-friendly form states
   const [addressConfirmed, setAddressConfirmed] = useState<boolean>(false);
@@ -48,6 +52,7 @@ export default function PublicMagicRenewalPage() {
   const [renewalSuccessMessage, setRenewalSuccessMessage] = useState<string | null>(null);
   const [renewalError, setRenewalError] = useState<string | null>(null);
   const [pickupRequested, setPickupRequested] = useState<boolean>(false);
+  const [sedeDeliveredSuccess, setSedeDeliveredSuccess] = useState<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
@@ -142,6 +147,42 @@ export default function PublicMagicRenewalPage() {
     }
   };
 
+  const handleNotifySedeDelivery = async () => {
+    if (!loan) return;
+    try {
+      setNotifyingSede(true);
+      const ben = loan.beneficiary;
+      const res = await dataRepository.notifyReturnIntent(magicToken, 'SEDE', observation.trim());
+      if (res.loan) {
+        setLoan(res.loan);
+      }
+      setSedeDeliveredSuccess(true);
+      setPickupRequested(false);
+
+      // Automated Evolution WhatsApp notification to Rotary
+      fetch('/api/whatsapp/evolution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send',
+          phone: cleanPhoneForWhatsApp(DEFAULT_CLUB_INFO.contactPhone),
+          message:
+            `🔔 *Aviso do Portal — Devolução na Sede do Rotary*\n\n` +
+            `O beneficiário *${ben?.full_name || 'Beneficiário'}* informou pelo portal que levará o equipamento à sede do Rotary.\n\n` +
+            `• *Equipamento:* ${loan.equipment?.name || 'Equipamento'} (#${loan.equipment?.patrimony_code || '—'})\n` +
+            `• *Contrato:* ${loan.loan_code}\n` +
+            `• *Telefone:* ${ben?.phone || '—'}\n` +
+            `${observation.trim() ? `• *Observação do Usuário:* "${observation.trim()}"\n` : ''}` +
+            `\n_Ao receber o equipamento na sede, realize a vistoria e emita o Termo de Quitação no sistema._`,
+        }),
+      }).catch(() => {});
+    } catch (err) {
+      console.error('Erro ao registrar aviso de devolução na sede:', err);
+    } finally {
+      setNotifyingSede(false);
+    }
+  };
+
   const handleRequestHomePickup = async () => {
     if (!loan) return;
     try {
@@ -153,15 +194,32 @@ export default function PublicMagicRenewalPage() {
           } - ${ben.address_neighborhood}, ${ben.address_city}/${ben.address_state}`
         : 'Endereço do cadastro';
 
-      await dataRepository.addLoanEvent({
-        loan_id: loan.id,
-        event_type: 'STATUS_CHANGE',
-        old_status: loan.status,
-        new_status: loan.status,
-        notes: `Solicitação de coleta domiciliar (item grande / paciente acamado) registrada pelo Portal Público de Renovação. Endereço: ${fullAddress}.`,
-      });
+      const res = await dataRepository.notifyReturnIntent(magicToken, 'COLETA', observation.trim());
+      if (res.loan) {
+        setLoan(res.loan);
+      }
 
       setPickupRequested(true);
+      setSedeDeliveredSuccess(false);
+
+      // Automated Evolution WhatsApp notification to Rotary
+      fetch('/api/whatsapp/evolution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send',
+          phone: cleanPhoneForWhatsApp(DEFAULT_CLUB_INFO.contactPhone),
+          message:
+            `🔔 *Solicitação de Coleta em Domicílio — Banco Ortopédico*\n\n` +
+            `O beneficiário *${ben?.full_name || 'Beneficiário'}* solicitou busca em casa pelo portal.\n\n` +
+            `• *Equipamento:* ${loan.equipment?.name || 'Equipamento'} (#${loan.equipment?.patrimony_code || '—'})\n` +
+            `• *Contrato:* ${loan.loan_code}\n` +
+            `• *Telefone:* ${ben?.phone || '—'}\n` +
+            `• *Endereço para Retirada:* ${fullAddress}\n` +
+            `${observation.trim() ? `• *Observação:* "${observation.trim()}"\n` : ''}` +
+            `\n_Favor entrar em contato para agendar o recolhimento com os voluntários._`,
+        }),
+      }).catch(() => {});
 
       const coordinatorPhone = cleanPhoneForWhatsApp(DEFAULT_CLUB_INFO.contactPhone);
       const msg =
@@ -447,6 +505,18 @@ export default function PublicMagicRenewalPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Download Signed Comodato Contract PDF Button */}
+              <div className="pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => generateComodatoContractPDF(loan)}
+                  className="w-full flex items-center justify-center gap-3 bg-[#0c2340] hover:bg-[#17458f] text-white font-extrabold text-base sm:text-lg px-6 py-4 rounded-xl shadow-md transition cursor-pointer"
+                >
+                  <FileText className="w-6 h-6 text-[#f7a81b]" />
+                  <span>Visualizar / Baixar 2ª Via do Contrato Assinado (PDF)</span>
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -658,7 +728,7 @@ export default function PublicMagicRenewalPage() {
                         Sede do {DEFAULT_CLUB_INFO.clubName}
                       </div>
                       <div className="text-base text-slate-700">
-                        Av. Conselheiro Nébias, 754 • {DEFAULT_CLUB_INFO.city}
+                        {DEFAULT_CLUB_INFO.city}
                       </div>
                     </div>
                   </div>
@@ -672,7 +742,7 @@ export default function PublicMagicRenewalPage() {
                       <div className="text-lg font-extrabold text-slate-900">
                         Seg a Sex: 09h às 17h
                       </div>
-                      <div className="text-base text-slate-700">Sábados: 09h às 12h</div>
+                      <div className="text-base text-slate-700">Plantão Rotary</div>
                     </div>
                   </div>
 
@@ -685,42 +755,95 @@ export default function PublicMagicRenewalPage() {
                       <div className="text-lg font-extrabold text-slate-900">
                         {DEFAULT_CLUB_INFO.contactPhone}
                       </div>
-                      <div className="text-base text-slate-700">Plantão da Comissão</div>
+                      <div className="text-base text-slate-700">Plantão do Banco</div>
                     </div>
                   </div>
                 </div>
 
-                {pickupRequested && (
+                {/* Notifications of recorded intents */}
+                {sedeDeliveredSuccess && (
                   <div
                     role="status"
-                    className="bg-blue-50 border-2 border-[#17458f] text-slate-900 p-5 rounded-xl flex items-start gap-3"
+                    className="bg-emerald-50 border-2 border-emerald-600 text-emerald-950 p-5 rounded-xl flex items-start gap-3 animate-in fade-in duration-300"
                   >
-                    <CheckCircle2 className="w-7 h-7 text-[#17458f] shrink-0 mt-0.5" />
-                    <div className="text-lg font-semibold">
-                      Registramos seu pedido de apoio para retirada em domicílio! Complete o envio
-                      da mensagem no WhatsApp que abrimos para combinar o melhor dia com nossos
-                      voluntários.
+                    <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="text-lg font-medium leading-relaxed">
+                      ✅ <strong className="font-bold text-emerald-900">Aviso registrado no sistema do Rotary!</strong> Notificamos os voluntários de que você entregará o equipamento na sede. Ao chegar com o aparelho, emitiremos o seu Termo Oficial de Quitação. Muito obrigado pela sua colaboração!
                     </div>
                   </div>
                 )}
 
-                {/* Large Home Collection Request Button */}
-                <div className="space-y-3">
-                  <p className="text-lg text-slate-700 font-medium">
-                    Se o equipamento for de grande porte (como cama hospitalar ou cadeira de rodas)
-                    ou você não tiver como levá-lo até o Rotary, clique no botão abaixo:
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleRequestHomePickup}
-                    disabled={requestingPickup}
-                    className="w-full flex items-center justify-center gap-3 bg-[#17458f] hover:bg-[#0c2340] text-white font-extrabold text-lg sm:text-xl px-6 py-5 rounded-2xl shadow-lg transition disabled:opacity-60 cursor-pointer"
+                {pickupRequested && (
+                  <div
+                    role="status"
+                    className="bg-blue-50 border-2 border-[#17458f] text-slate-900 p-5 rounded-xl flex items-start gap-3 animate-in fade-in duration-300"
                   >
-                    <Truck className="w-7 h-7 text-[#f7a81b] shrink-0" />
-                    <span>
-                      Preciso de ajuda para buscar em casa (Item grande / Paciente acamado)
-                    </span>
-                  </button>
+                    <CheckCircle2 className="w-8 h-8 text-[#17458f] shrink-0 mt-0.5" />
+                    <div className="text-lg font-medium leading-relaxed">
+                      ✅ <strong className="font-bold text-[#17458f]">Solicitação de coleta registrada no sistema!</strong> Nossos voluntários do Rotary receberam o pedido com o seu endereço e entrarão em contato para combinar a retirada.
+                    </div>
+                  </div>
+                )}
+
+                {/* Two Distinct Return Options */}
+                <div className="space-y-3 pt-1">
+                  <p className="text-lg text-slate-800 font-bold">
+                    Como você prefere devolver o equipamento?
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Opção A: Levar na Sede do Rotary */}
+                    <div className="p-5 rounded-2xl border-2 border-emerald-300 bg-emerald-50/60 flex flex-col justify-between space-y-4">
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-emerald-900 bg-emerald-200/80 px-2.5 py-1 rounded-md">
+                          <Building2 className="w-4 h-4 text-emerald-800" />
+                          Opção 1 • Entrega Direta
+                        </div>
+                        <h3 className="text-xl font-extrabold text-slate-900">
+                          Vou levar e entregar no Rotary
+                        </h3>
+                        <p className="text-sm text-slate-700 leading-relaxed">
+                          Recomendado se você ou algum familiar puder levar o aparelho até a sede do Rotary em Farroupilha.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleNotifySedeDelivery}
+                        disabled={notifyingSede}
+                        className="w-full flex items-center justify-center gap-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-base px-5 py-4 rounded-xl shadow-md transition cursor-pointer disabled:opacity-60"
+                      >
+                        <Building2 className="w-5 h-5" />
+                        <span>{notifyingSede ? 'Registrando aviso...' : 'Avisar que vou levar na sede'}</span>
+                      </button>
+                    </div>
+
+                    {/* Opção B: Pedir Coleta Domiciliar */}
+                    <div className="p-5 rounded-2xl border-2 border-blue-300 bg-blue-50/60 flex flex-col justify-between space-y-4">
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-blue-900 bg-blue-200/80 px-2.5 py-1 rounded-md">
+                          <Truck className="w-4 h-4 text-[#17458f]" />
+                          Opção 2 • Coleta em Casa
+                        </div>
+                        <h3 className="text-xl font-extrabold text-slate-900">
+                          Preciso que busquem em casa
+                        </h3>
+                        <p className="text-sm text-slate-700 leading-relaxed">
+                          Para itens grandes/pesados (como cama hospitalar ou cadeira de rodas) ou impossibilidade de transporte.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleRequestHomePickup}
+                        disabled={requestingPickup}
+                        className="w-full flex items-center justify-center gap-2.5 bg-[#17458f] hover:bg-[#0c2340] text-white font-extrabold text-base px-5 py-4 rounded-xl shadow-md transition cursor-pointer disabled:opacity-60"
+                      >
+                        <Truck className="w-5 h-5 text-[#f7a81b]" />
+                        <span>{requestingPickup ? 'Registrando pedido...' : 'Solicitar retirada em casa'}</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>

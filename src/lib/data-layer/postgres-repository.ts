@@ -86,6 +86,18 @@ export class PostgresRepository implements IDataRepository {
   renewLoan(magic_token: string): Promise<RenewLoanResult> {
     return callDbApi<RenewLoanResult>('renewLoan', magic_token);
   }
+  notifyReturnIntent(
+    magic_token: string,
+    intent: 'SEDE' | 'COLETA',
+    notes?: string
+  ): Promise<{ success: boolean; message: string; loan?: Loan }> {
+    return callDbApi<{ success: boolean; message: string; loan?: Loan }>(
+      'notifyReturnIntent',
+      magic_token,
+      intent,
+      notes
+    );
+  }
   returnLoan(loan_id: string, triage: ReturnLoanInput): Promise<ReturnLoanResult> {
     return callDbApi<ReturnLoanResult>('returnLoan', loan_id, triage);
   }

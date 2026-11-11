@@ -14,10 +14,10 @@ export const ROTARY_BRAND = {
 };
 
 export const DEFAULT_CLUB_INFO = {
-  clubName: process.env.NEXT_PUBLIC_ROTARY_CLUB_NAME || "Rotary Club Farroupilha",
+  clubName: process.env.NEXT_PUBLIC_ROTARY_CLUB_NAME || "Rotary Club de Farroupilha",
   district: process.env.NEXT_PUBLIC_ROTARY_DISTRICT || "Distrito 4700",
   city: process.env.NEXT_PUBLIC_ROTARY_CITY || "Farroupilha - RS",
-  contactPhone: process.env.NEXT_PUBLIC_CONTACT_PHONE || "(54) 99999-0000",
+  contactPhone: process.env.NEXT_PUBLIC_CONTACT_PHONE || "(54) 99932-6259",
   president: process.env.NEXT_PUBLIC_ROTARY_PRESIDENT || "Comissão do Banco de Aparelhos Ortopédicos",
 };
 
