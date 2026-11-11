@@ -1,22 +1,25 @@
 // ==============================================================================
 // ROTARY BANCO ORTOPÉDICO - EMAIL MFA DISPATCH API ROUTE
 // Sends the 6-digit MFA verification code to the user's registered email address
-// via Resend API, custom SMTP/Resend config, or Supabase Auth OTP.
+// via configured SMTP (Nodemailer), Resend API, or Supabase Auth OTP.
 // ==============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import nodemailer from 'nodemailer';
 import { DEFAULT_CLUB_INFO } from '@/lib/constants';
 import { createServerSupabaseClient, isSupabaseConfigured } from '@/lib/data-layer/supabase-client';
 
 export const dynamic = 'force-dynamic';
 
-// In-memory runtime config cache for serverless/edge instances when configured via UI
 let runtimeEmailConfig: {
   resendApiKey?: string;
   emailFrom?: string;
 } = {};
 
 export async function GET() {
+  const hasSmtp = Boolean(
+    process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS
+  );
   const hasEnvResend = Boolean(
     process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.includes('your-')
   );
@@ -25,8 +28,10 @@ export async function GET() {
     isSupabaseConfigured() && process.env.NEXT_PUBLIC_ENABLE_DEMO_FALLBACK === 'false';
 
   return NextResponse.json({
-    configured: hasEnvResend || hasRuntimeResend || hasSupabaseProd,
-    provider: hasEnvResend || hasRuntimeResend
+    configured: hasSmtp || hasEnvResend || hasRuntimeResend || hasSupabaseProd,
+    provider: hasSmtp
+      ? 'SMTP'
+      : hasEnvResend || hasRuntimeResend
       ? 'RESEND'
       : hasSupabaseProd
       ? 'SUPABASE_AUTH'
@@ -34,6 +39,7 @@ export async function GET() {
     emailFrom:
       runtimeEmailConfig.emailFrom ||
       process.env.EMAIL_FROM ||
+      process.env.SMTP_FROM ||
       'Rotary Club de Farroupilha <onboarding@resend.dev>',
   });
 }
@@ -121,7 +127,44 @@ export async function POST(request: NextRequest) {
       </div>
     `;
 
-    // 1. Check Resend API key (from env, runtime config, or client-configured key)
+    // 1. Check SMTP configuration (Nodemailer — automatically synced from Vercel projects)
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        const port = parseInt(process.env.SMTP_PORT || '587', 10);
+        const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+        const fromAddress =
+          process.env.EMAIL_FROM ||
+          `Rotary Club de Farroupilha <${process.env.SMTP_USER}>`;
+
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST,
+          port,
+          secure,
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        });
+
+        await transporter.sendMail({
+          from: fromAddress,
+          to: email,
+          subject,
+          html: htmlBody,
+        });
+
+        return NextResponse.json({
+          success: true,
+          provider: 'SMTP_EMAIL',
+          delivered: true,
+          message: `Código de 6 dígitos enviado por e-mail para ${email}.`,
+        });
+      } catch (smtpErr: any) {
+        console.error('Erro ao enviar via SMTP:', smtpErr?.message);
+      }
+    }
+
+    // 2. Check Resend API key (from env, runtime config, or client-configured key)
     const resendApiKey =
       clientResendKey ||
       runtimeEmailConfig.resendApiKey ||
@@ -157,7 +200,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. If Supabase is configured in production mode, trigger Supabase Auth Email OTP
+    // 3. If Supabase is configured in production mode, trigger Supabase Auth Email OTP
     if (isSupabaseConfigured() && process.env.NEXT_PUBLIC_ENABLE_DEMO_FALLBACK === 'false') {
       const supabase = createServerSupabaseClient();
       const { error } = await supabase.auth.signInWithOtp({
@@ -177,7 +220,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Log in server console when no external SMTP/Resend key is configured yet
+    // 4. Fallback console log
     console.info(
       `\n======================================================================\n` +
         `[ROTARY MFA EMAIL DISPATCH] Para: ${fullName} <${email}>\n` +
