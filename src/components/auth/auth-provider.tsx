@@ -23,10 +23,17 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-const PUBLIC_PATHS = ["/login", "/renovar"];
+const PUBLIC_PATHS = ["/login", "/renovar", "/item"];
 
 export function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    return true;
+  }
+  // Public access to official discharge quittance receipts (Art. 320 CCB)
+  if (pathname.includes("/receipt")) {
+    return true;
+  }
+  return false;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

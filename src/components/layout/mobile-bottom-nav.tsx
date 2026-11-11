@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Package, QrCode, FileText, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/auth-provider";
 
 interface NavItem {
   href: string;
@@ -14,6 +15,16 @@ interface NavItem {
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  if (
+    pathname === "/login" ||
+    pathname.startsWith("/renovar") ||
+    (pathname.includes("/receipt") && !user) ||
+    (pathname.startsWith("/item/") && !user)
+  ) {
+    return null;
+  }
 
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Início", icon: LayoutDashboard },

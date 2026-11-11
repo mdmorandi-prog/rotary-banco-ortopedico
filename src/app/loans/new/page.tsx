@@ -129,6 +129,7 @@ function FastCheckoutWizardInner() {
 
   // Step 5: Created Loan Result
   const [createdLoan, setCreatedLoan] = useState<Loan | null>(null);
+  const [resendingWa, setResendingWa] = useState<boolean>(false);
 
   // Load available equipments & handle preselected equipment_id
   useEffect(() => {
@@ -543,6 +544,27 @@ function FastCheckoutWizardInner() {
       toast.error(message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleResendWhatsApp = async () => {
+    if (!createdLoan) return;
+    setResendingWa(true);
+    try {
+      const waPayload = buildCheckoutWhatsAppLink(createdLoan);
+      const res = await sendWhatsAppNotification(waPayload.phone, waPayload.message);
+      if (res.sentViaApi) {
+        toast.success(
+          'Resumo do contrato e link de renovação reenviados com sucesso no WhatsApp do beneficiário!'
+        );
+      } else {
+        toast.info('Abrindo WhatsApp Web como contingência...');
+        window.open(waPayload.url, '_blank', 'noopener,noreferrer');
+      }
+    } catch {
+      toast.error('Erro ao reenviar pelo WhatsApp.');
+    } finally {
+      setResendingWa(false);
     }
   };
 
@@ -1504,26 +1526,38 @@ function FastCheckoutWizardInner() {
             </div>
           </div>
 
-          {/* Primary Action Buttons: PDF Download & WhatsApp Share */}
+          {/* Automated WhatsApp Notification Banner */}
+          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div className="text-xs sm:text-sm text-emerald-950">
+              <strong className="block font-bold">
+                Contrato e link de renovação enviados automaticamente!
+              </strong>
+              O resumo do comodato foi disparado pelo WhatsApp do Rotary diretamente para o beneficiário (
+              {createdLoan.beneficiary?.phone || phone}).
+            </div>
+          </div>
+
+          {/* Primary Action Buttons: PDF Download & WhatsApp API Dispatch */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               type="button"
               onClick={() => generateComodatoContractPDF(createdLoan)}
-              className="flex items-center justify-center gap-2.5 py-4 px-5 rounded-xl font-bold text-white bg-rotary-blue hover:bg-blue-800 transition-all shadow-sm"
+              className="flex items-center justify-center gap-2.5 py-4 px-5 rounded-xl font-bold text-white bg-rotary-blue hover:bg-blue-800 transition-all shadow-sm cursor-pointer"
             >
               <Download className="w-5 h-5" />
               Baixar Termo de Comodato (PDF)
             </button>
 
-            <a
-              href={getWhatsAppShareUrl(createdLoan)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2.5 py-4 px-5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all shadow-sm"
+            <button
+              type="button"
+              disabled={resendingWa}
+              onClick={handleResendWhatsApp}
+              className="flex items-center justify-center gap-2.5 py-4 px-5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-sm cursor-pointer"
             >
               <MessageCircle className="w-5 h-5" />
-              Enviar Termo e Recibo no WhatsApp do Beneficiário
-            </a>
+              {resendingWa ? 'Reenviando...' : 'Reenviar no WhatsApp via API'}
+            </button>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">

@@ -35,6 +35,7 @@ import {
 } from "@/lib/constants";
 import { cn, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { buildDischargeWhatsAppLink, sendWhatsAppNotification } from "@/lib/whatsapp";
+import { toast } from "sonner";
 
 function sanitizeWhatsAppPhone(phone?: string): string {
   if (!phone) return "";
@@ -155,6 +156,7 @@ export default function ReturnTriagePage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [completedLoan, setCompletedLoan] = useState<Loan | null>(null);
+  const [resendingWa, setResendingWa] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Form states
@@ -242,6 +244,31 @@ export default function ReturnTriagePage() {
       setErrorMsg("Erro inesperado ao salvar a triagem de devolução.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleResendDischargeWhatsApp = async () => {
+    const target = completedLoan || loan;
+    if (!target) return;
+    setResendingWa(true);
+    try {
+      const dischargePayload = buildDischargeWhatsAppLink(target);
+      const res = await sendWhatsAppNotification(
+        dischargePayload.phone,
+        dischargePayload.message
+      );
+      if (res.sentViaApi) {
+        toast.success(
+          "Termo de Quitação reenviado no WhatsApp do beneficiário com sucesso!"
+        );
+      } else {
+        toast.info("Abrindo WhatsApp Web como contingência...");
+        window.open(dischargePayload.url, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      toast.error("Erro ao reenviar pelo WhatsApp.");
+    } finally {
+      setResendingWa(false);
     }
   };
 
@@ -476,6 +503,14 @@ export default function ReturnTriagePage() {
                 </div>
               )}
 
+              {/* Automated WhatsApp Dispatch Status Banner */}
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div className="text-xs sm:text-sm text-emerald-950 font-medium">
+                  <strong>Termo de Quitação Oficial enviado no WhatsApp!</strong> O comprovante de devolução (Art. 320 CCB) foi disparado automaticamente pelo WhatsApp do Rotary ({waPhone}).
+                </div>
+              </div>
+
               <div className="pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
                 <Link
                   href="/loans"
@@ -486,17 +521,17 @@ export default function ReturnTriagePage() {
                 </Link>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  <a
-                    href={`https://wa.me/${waPhone}?text=${whatsappDischargeText}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-colors shadow-sm"
+                  <button
+                    type="button"
+                    disabled={resendingWa}
+                    onClick={handleResendDischargeWhatsApp}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold transition-colors shadow-sm cursor-pointer"
                   >
                     <MessageCircle className="w-4 h-4" />
                     <span>
-                      Enviar Comprovante de Quitação no WhatsApp do Beneficiário
+                      {resendingWa ? "Reenviando..." : "Reenviar no WhatsApp via API"}
                     </span>
-                  </a>
+                  </button>
 
                   <Link
                     href={`/loans/${loan.id}/receipt`}

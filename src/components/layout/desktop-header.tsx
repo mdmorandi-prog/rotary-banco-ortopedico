@@ -22,7 +22,12 @@ export function DesktopHeader() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  if (pathname === "/login" || pathname.startsWith("/renovar/")) {
+  if (
+    pathname === "/login" ||
+    pathname.startsWith("/renovar") ||
+    (pathname.includes("/receipt") && !user) ||
+    (pathname.startsWith("/item/") && !user)
+  ) {
     return null;
   }
 

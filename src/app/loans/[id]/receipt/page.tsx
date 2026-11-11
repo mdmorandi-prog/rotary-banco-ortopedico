@@ -26,6 +26,9 @@ import {
   CLOSE_REASON_LABELS,
 } from "@/lib/constants";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { useAuth } from "@/components/auth/auth-provider";
+import { toast } from "sonner";
+import { buildDischargeWhatsAppLink, sendWhatsAppNotification } from "@/lib/whatsapp";
 
 function sanitizeWhatsAppPhone(phone?: string): string {
   if (!phone) return "";
@@ -38,8 +41,29 @@ export default function DischargeReceiptPage() {
   const params = useParams<{ id: string }>();
   const loanId = params?.id || "";
 
+  const { user } = useAuth();
   const [loan, setLoan] = useState<Loan | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [sendingWa, setSendingWa] = useState<boolean>(false);
+
+  const handleResendWhatsApp = async () => {
+    if (!loan) return;
+    setSendingWa(true);
+    try {
+      const payload = buildDischargeWhatsAppLink(loan);
+      const res = await sendWhatsAppNotification(payload.phone, payload.message);
+      if (res.sentViaApi) {
+        toast.success("✅ Termo de Quitação enviado com sucesso pelo WhatsApp do Rotary!");
+      } else {
+        toast.info("Abrindo WhatsApp Web como contingência...");
+        window.open(payload.url, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      toast.error("Erro ao enviar pelo WhatsApp.");
+    } finally {
+      setSendingWa(false);
+    }
+  };
 
   const loadLoan = useCallback(async () => {
     if (!loanId) return;
@@ -94,11 +118,11 @@ export default function DischargeReceiptPage() {
           </p>
           <div className="mt-6">
             <Link
-              href="/loans"
+              href={user ? "/loans" : "/"}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#17458f] text-white text-sm font-semibold hover:bg-[#0c2340]"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Voltar para Contratos</span>
+              <span>{user ? "Voltar para Contratos" : "Voltar ao Início"}</span>
             </Link>
           </div>
         </div>
@@ -165,38 +189,59 @@ export default function DischargeReceiptPage() {
     <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6 lg:px-8 print:bg-white print:p-0">
       {/* Top Action Bar (Hidden when printing) */}
       <div className="max-w-3xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/loans/${loan.id}`}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-[#17458f] transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Detalhes do Contrato</span>
-          </Link>
-          <span className="text-slate-300">|</span>
-          <Link
-            href="/loans"
-            className="text-sm font-medium text-slate-600 hover:text-slate-900"
-          >
-            Todos os Contratos
-          </Link>
-        </div>
+        {user ? (
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/loans/${loan.id}`}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-[#17458f] transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Detalhes do Contrato</span>
+            </Link>
+            <span className="text-slate-300">|</span>
+            <Link
+              href="/loans"
+              className="text-sm font-medium text-slate-600 hover:text-slate-900"
+            >
+              Todos os Contratos
+            </Link>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
+            <ShieldCheck className="w-5 h-5 text-emerald-600" />
+            <span>Documento Oficial Autenticado • Rotary Club</span>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <a
-            href={`https://wa.me/${waBeneficiaryPhone}?text=${waReceiptMessage}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold transition-colors shadow-sm"
-          >
-            <MessageCircle className="w-4 h-4" />
-            <span>Compartilhar Quitação via WhatsApp</span>
-          </a>
+          {user ? (
+            <button
+              type="button"
+              disabled={sendingWa}
+              onClick={handleResendWhatsApp}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs sm:text-sm font-bold transition-colors shadow-sm cursor-pointer"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>
+                {sendingWa ? "Reenviando..." : "Reenviar no WhatsApp via API"}
+              </span>
+            </button>
+          ) : (
+            <a
+              href={`https://wa.me/?text=${waReceiptMessage}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold transition-colors shadow-sm"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Compartilhar via WhatsApp</span>
+            </a>
+          )}
 
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#17458f] hover:bg-[#0c2340] text-white text-xs sm:text-sm font-bold transition-colors shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#17458f] hover:bg-[#0c2340] text-white text-xs sm:text-sm font-bold transition-colors shadow-sm cursor-pointer"
           >
             <Printer className="w-4 h-4 text-[#f7a81b]" />
             <span>Imprimir / Salvar PDF</span>
