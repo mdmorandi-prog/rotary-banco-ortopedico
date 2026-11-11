@@ -283,6 +283,19 @@ export default function AcervoMap({
         map.setView([coords.lat, coords.lng], 15, { animate: true });
       }
     });
+
+    // Auto-fit map bounds so both Rotary Headquarters and all equipment pins are visible
+    if (!selectedLoanId && loans.length > 0) {
+      const allCoords: [number, number][] = [
+        [ROTARY_FARROUPILHA_SEDE.lat, ROTARY_FARROUPILHA_SEDE.lng],
+        ...loans.map((l) => {
+          const c = resolveLoanCoordinates(l);
+          return [c.lat, c.lng] as [number, number];
+        }),
+      ];
+      const bounds = L.latLngBounds(allCoords);
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
+    }
   }, [loans, selectedLoanId, onSelectLoan]);
 
   return (
@@ -305,6 +318,10 @@ export default function AcervoMap({
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-red-500 border border-red-700"></span>
           <span className="text-slate-700 font-medium">Atrasado / Coleta pendente</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-slate-500 border border-slate-700"></span>
+          <span className="text-slate-700 font-medium">Devolvido / Histórico</span>
         </div>
         <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
           <span className="w-3.5 h-3.5 rounded-full bg-[#0c2340] border border-[#f7a81b] flex items-center justify-center text-[9px] text-[#f7a81b] font-bold">

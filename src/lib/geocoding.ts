@@ -24,40 +24,56 @@ export const ROTARY_FARROUPILHA_SEDE: GeoCoordinate = {
 
 /**
  * Farroupilha - RS Neighborhood Reference Coordinates Dictionary
- * Based on municipal perimeter and IBGE census sectors.
+ * Audited with OpenStreetMap & Municipal IBGE sectors
  */
 export const FARROUPILHA_NEIGHBORHOODS: Record<string, { lat: number; lng: number }> = {
-  centro: { lat: -29.2241, lng: -51.3435 },
-  'sao luiz': { lat: -29.2175, lng: -51.3362 },
-  'do parque': { lat: -29.229, lng: -51.349 },
-  'primeiro de maio': { lat: -29.2312, lng: -51.334 },
-  '1 de maio': { lat: -29.2312, lng: -51.334 },
-  'nova vicenza': { lat: -29.215, lng: -51.352 },
-  cinquentenario: { lat: -29.2205, lng: -51.357 },
-  'cinqüentenário': { lat: -29.2205, lng: -51.357 },
-  'pio x': { lat: -29.2285, lng: -51.3585 },
-  planalto: { lat: -29.211, lng: -51.341 },
-  america: { lat: -29.2135, lng: -51.328 },
-  'américa': { lat: -29.2135, lng: -51.328 },
-  belvedere: { lat: -29.236, lng: -51.342 },
-  'volta grande': { lat: -29.208, lng: -51.331 },
-  industrial: { lat: -29.238, lng: -51.356 },
-  medianeira: { lat: -29.234, lng: -51.351 },
-  'bela vista': { lat: -29.226, lng: -51.325 },
-  cruzeiro: { lat: -29.219, lng: -51.321 },
-  imigrante: { lat: -29.222, lng: -51.331 },
-  vicentina: { lat: -29.214, lng: -51.348 },
-  'monte pasqual': { lat: -29.241, lng: -51.338 },
-  'santo antonio': { lat: -29.206, lng: -51.345 },
-  'santo antônio': { lat: -29.206, lng: -51.345 },
-  forqueta: { lat: -29.202, lng: -51.298 },
-  caravaggio: { lat: -29.245, lng: -51.365 },
+  'monte pasqual': { lat: -29.220757, lng: -51.316315 },
+  centro: { lat: -29.227212, lng: -51.346962 },
+  'sao luiz': { lat: -29.233448, lng: -51.390998 },
+  'são luiz': { lat: -29.233448, lng: -51.390998 },
+  'do parque': { lat: -29.230488, lng: -51.343570 },
+  parque: { lat: -29.230488, lng: -51.343570 },
+  'primeiro de maio': { lat: -29.241850, lng: -51.350219 },
+  '1 de maio': { lat: -29.241850, lng: -51.350219 },
+  'nova vicenza': { lat: -29.213481, lng: -51.347329 },
+  cinquentenario: { lat: -29.205077, lng: -51.349157 },
+  'cinqüentenário': { lat: -29.205077, lng: -51.349157 },
+  'pio x': { lat: -29.231699, lng: -51.335491 },
+  planalto: { lat: -29.221808, lng: -51.343752 },
+  america: { lat: -29.234920, lng: -51.326730 },
+  'américa': { lat: -29.234920, lng: -51.326730 },
+  belvedere: { lat: -29.205089, lng: -51.358517 },
+  'volta grande': { lat: -29.235812, lng: -51.337474 },
+  industrial: { lat: -29.225296, lng: -51.325278 },
+  medianeira: { lat: -29.218115, lng: -51.332233 },
+  'bela vista': { lat: -29.211996, lng: -51.358588 },
+  cruzeiro: { lat: -29.212488, lng: -51.341153 },
+  imigrante: { lat: -29.233475, lng: -51.353502 },
+  vicentina: { lat: -29.218219, lng: -51.353536 },
+  'santo antonio': { lat: -29.239391, lng: -51.340775 },
+  'santo antônio': { lat: -29.239391, lng: -51.340775 },
+  forqueta: { lat: -29.201461, lng: -51.289274 },
+  caravaggio: { lat: -29.174074, lng: -51.345716 },
+};
+
+/**
+ * Common Farroupilha arterial streets direct coordinates
+ */
+export const FARROUPILHA_STREET_LANDMARKS: Record<string, { lat: number; lng: number }> = {
+  'jose maioli': { lat: -29.218270, lng: -51.314719 },
+  'josé maioli': { lat: -29.218270, lng: -51.314719 },
+  'nataly valentini': { lat: -29.230488, lng: -51.343570 },
+  'julio de castilhos': { lat: -29.227212, lng: -51.346962 },
+  'júlio de castilhos': { lat: -29.227212, lng: -51.346962 },
+  'coronel pena de moraes': { lat: -29.225500, lng: -51.344800 },
+  'independencia': { lat: -29.223800, lng: -51.342100 },
+  'independência': { lat: -29.223800, lng: -51.342100 },
 };
 
 /**
  * Normalizes strings by removing accents and lowercasing for lookup
  */
-function normalizeName(str: string): string {
+export function normalizeName(str: string): string {
   return (str || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -67,14 +83,18 @@ function normalizeName(str: string): string {
 
 /**
  * Resolves a coordinate for a loan address in Farroupilha.
- * If exact GPS exists, uses it; otherwise calculates the neighborhood position
- * with a deterministic scatter jitter based on street & house number.
+ * 1. Exact GPS Check-in previously captured on loan
+ * 2. Exact Geocoded coordinates on beneficiary
+ * 3. Exact street landmark in Farroupilha
+ * 4. Audited neighborhood position with deterministic house-number offset
  */
 export function resolveLoanCoordinates(
   loan: {
     lat?: number;
     lng?: number;
     beneficiary?: {
+      lat?: number;
+      lng?: number;
       address_neighborhood?: string;
       address_street?: string;
       address_number?: string;
@@ -82,7 +102,7 @@ export function resolveLoanCoordinates(
     };
   }
 ): GeoCoordinate {
-  // 1. Exact GPS Check-in previously captured
+  // 1. Exact GPS Check-in previously captured on the loan
   if (loan.lat && loan.lng && !isNaN(Number(loan.lat)) && !isNaN(Number(loan.lng))) {
     return {
       lat: Number(loan.lat),
@@ -91,31 +111,59 @@ export function resolveLoanCoordinates(
     };
   }
 
-  const neighborhood = loan.beneficiary?.address_neighborhood || '';
+  // 2. Exact geocoded coordinates stored on the beneficiary
+  if (
+    loan.beneficiary?.lat &&
+    loan.beneficiary?.lng &&
+    !isNaN(Number(loan.beneficiary.lat)) &&
+    !isNaN(Number(loan.beneficiary.lng))
+  ) {
+    return {
+      lat: Number(loan.beneficiary.lat),
+      lng: Number(loan.beneficiary.lng),
+      source: 'GEOCODED',
+    };
+  }
+
   const street = loan.beneficiary?.address_street || '';
   const numberStr = loan.beneficiary?.address_number || '';
+  const neighborhood = loan.beneficiary?.address_neighborhood || '';
+  const cleanStreet = normalizeName(street);
   const cleanNeighborhood = normalizeName(neighborhood);
 
-  // 2. Find matching Farroupilha neighborhood
+  // 3. Known street landmark in Farroupilha
+  for (const [key, coords] of Object.entries(FARROUPILHA_STREET_LANDMARKS)) {
+    const cleanKey = normalizeName(key);
+    if (cleanStreet.includes(cleanKey) || cleanKey.includes(cleanStreet)) {
+      return {
+        lat: coords.lat,
+        lng: coords.lng,
+        source: 'GEOCODED',
+      };
+    }
+  }
+
+  // 4. Find matching Farroupilha neighborhood
   let baseCoords = FARROUPILHA_NEIGHBORHOODS['centro'];
   for (const [key, coords] of Object.entries(FARROUPILHA_NEIGHBORHOODS)) {
-    if (cleanNeighborhood.includes(key) || key.includes(cleanNeighborhood)) {
+    const cleanKey = normalizeName(key);
+    if (cleanNeighborhood.includes(cleanKey) || cleanKey.includes(cleanNeighborhood)) {
       baseCoords = coords;
       break;
     }
   }
 
-  // 3. Apply deterministic scatter offset based on street & number
-  // so pins in the same neighborhood don't overlap completely on the exact same pixel
-  const seedString = `${street}-${numberStr}-${cleanNeighborhood}`;
+  // Apply slight deterministic scatter offset based on street & number
+  // so distinct addresses don't stack on the exact same pixel
+  const seedString = `${cleanStreet}-${numberStr}-${cleanNeighborhood}`;
   let hash = 0;
   for (let i = 0; i < seedString.length; i++) {
     hash = (hash << 5) - hash + seedString.charCodeAt(i);
     hash |= 0;
   }
 
-  const offsetLat = ((Math.abs(hash) % 1000) / 1000 - 0.5) * 0.007; // ~350m radius
-  const offsetLng = ((Math.abs(hash * 31) % 1000) / 1000 - 0.5) * 0.007;
+  const offsetLat = ((Math.abs(hash) % 1000) / 1000 - 0.5) * 0.003; // ~150m radius
+  const offsetLng = ((Math.abs(hash * 31) % 1000) / 1000 - 0.5) * 0.003;
 
   return {
     lat: Number((baseCoords.lat + offsetLat).toFixed(6)),

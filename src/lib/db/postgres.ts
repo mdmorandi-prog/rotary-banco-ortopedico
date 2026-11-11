@@ -18,6 +18,7 @@ import {
   DashboardMetrics,
   EquipmentStatus,
 } from '../data-layer/types';
+import { resolveLoanCoordinates } from '../geocoding';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -464,8 +465,18 @@ function mapLoanRow(row: any, equipment?: Equipment, beneficiary?: Beneficiary):
       ? new Date(row.quittance_issued_at).toISOString()
       : undefined,
     discharge_receipt_url: row.discharge_receipt_url || undefined,
-    lat: row.lat !== null && row.lat !== undefined ? Number(row.lat) : undefined,
-    lng: row.lng !== null && row.lng !== undefined ? Number(row.lng) : undefined,
+    lat:
+      row.lat !== null && row.lat !== undefined
+        ? Number(row.lat)
+        : beneficiary?.lat !== null && beneficiary?.lat !== undefined
+        ? Number(beneficiary.lat)
+        : undefined,
+    lng:
+      row.lng !== null && row.lng !== undefined
+        ? Number(row.lng)
+        : beneficiary?.lng !== null && beneficiary?.lng !== undefined
+        ? Number(beneficiary.lng)
+        : undefined,
     last_gps_at: row.last_gps_at ? new Date(row.last_gps_at).toISOString() : undefined,
     last_gps_accuracy:
       row.last_gps_accuracy !== null && row.last_gps_accuracy !== undefined
@@ -727,6 +738,15 @@ export const pgDataService = {
     }
 
     const id = `ben-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+    const resolvedCoords = resolveLoanCoordinates({
+      beneficiary: {
+        address_street: data.address_street,
+        address_number: data.address_number,
+        address_neighborhood: data.address_neighborhood,
+        address_city: data.address_city,
+      },
+    });
+
     const { rows } = await pool.query(
       `INSERT INTO rotary.beneficiaries (
         id, full_name, cpf, rg, phone, email, birth_date,
@@ -736,9 +756,10 @@ export const pgDataService = {
         patient_name, patient_cpf, patient_rg, patient_relationship,
         patient_condition_notes, secondary_name, secondary_relationship,
         secondary_phone, secondary_contact_name, secondary_contact_relationship,
-        secondary_contact_phone, document_photo_url, proof_of_residence_url, notes
+        secondary_contact_phone, document_photo_url, proof_of_residence_url, notes,
+        lat, lng
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32
       ) RETURNING *;`,
       [
         id,
@@ -771,6 +792,8 @@ export const pgDataService = {
         data.document_photo_url || null,
         data.proof_of_residence_url || null,
         data.notes || null,
+        resolvedCoords.lat,
+        resolvedCoords.lng,
       ]
     );
     return mapBeneficiaryRow(rows[0]);
@@ -881,8 +904,9 @@ export const pgDataService = {
         id, loan_code, equipment_id, beneficiary_id,
         loan_date, expected_return_date, status,
         renewal_count, max_renewals, magic_token,
-        replacement_value, signature_url, notes
-      ) VALUES ($1,$2,$3,$4,$5,$6,'ATIVO',0,3,$7,$8,$9,$10)
+        replacement_value, signature_url, notes,
+        lat, lng
+      ) VALUES ($1,$2,$3,$4,$5,$6,'ATIVO',0,3,$7,$8,$9,$10,$11,$12)
       RETURNING *;`,
       [
         loan_id,
@@ -895,6 +919,8 @@ export const pgDataService = {
         equipment.replacement_value,
         data.signature_data_url || null,
         data.notes || '',
+        beneficiary.lat || null,
+        beneficiary.lng || null,
       ]
     );
 
