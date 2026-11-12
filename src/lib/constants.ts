@@ -22,8 +22,8 @@ export const DEFAULT_CLUB_INFO = {
   contactPhone: process.env.NEXT_PUBLIC_CONTACT_PHONE || "(54) 99932-6259",
   president: process.env.NEXT_PUBLIC_ROTARY_PRESIDENT || "Comissão do Banco de Aparelhos Ortopédicos",
   headquartersCoordinates: {
-    lat: -29.230488,
-    lng: -51.34357,
+    lat: -29.230026,
+    lng: -51.344540,
   },
 };
 

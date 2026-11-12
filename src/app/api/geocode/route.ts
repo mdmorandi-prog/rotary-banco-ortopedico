@@ -38,3 +38,4 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ ok: false, error: 'Coordenadas não encontradas' }, { status: 404 });
 }
+

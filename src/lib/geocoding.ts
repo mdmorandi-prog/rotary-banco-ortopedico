@@ -60,9 +60,9 @@ export const FARROUPILHA_NEIGHBORHOODS: Record<string, { lat: number; lng: numbe
  * Common Farroupilha arterial streets direct coordinates
  */
 export const FARROUPILHA_STREET_LANDMARKS: Record<string, { lat: number; lng: number }> = {
-  'jose maioli': { lat: -29.218270, lng: -51.314719 },
-  'josé maioli': { lat: -29.218270, lng: -51.314719 },
-  'nataly valentini': { lat: -29.230488, lng: -51.343570 },
+  'jose maioli': { lat: -29.222675, lng: -51.314535 },
+  'josé maioli': { lat: -29.222675, lng: -51.314535 },
+  'nataly valentini': { lat: -29.230026, lng: -51.344540 },
   'julio de castilhos': { lat: -29.227212, lng: -51.346962 },
   'júlio de castilhos': { lat: -29.227212, lng: -51.346962 },
   'coronel pena de moraes': { lat: -29.225500, lng: -51.344800 },
