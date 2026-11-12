@@ -18,7 +18,7 @@ import {
   DashboardMetrics,
   EquipmentStatus,
 } from '../data-layer/types';
-import { resolveLoanCoordinates } from '../geocoding';
+import { resolveLoanCoordinates, geocodeWithGoogle } from '../geocoding';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -738,14 +738,39 @@ export const pgDataService = {
     }
 
     const id = `ben-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
-    const resolvedCoords = resolveLoanCoordinates({
-      beneficiary: {
-        address_street: data.address_street,
-        address_number: data.address_number,
-        address_neighborhood: data.address_neighborhood,
-        address_city: data.address_city,
-      },
-    });
+    let targetLat: number | undefined;
+    let targetLng: number | undefined;
+
+    // 1. High-precision Google Maps Geocoding (Rooftop / door-number)
+    try {
+      const gRes = await geocodeWithGoogle({
+        street: data.address_street,
+        number: data.address_number,
+        neighborhood: data.address_neighborhood,
+        city: data.address_city,
+        cep: data.address_cep || data.address_zipcode,
+      });
+      if (gRes) {
+        targetLat = gRes.lat;
+        targetLng = gRes.lng;
+      }
+    } catch (gErr) {
+      console.warn('[Postgres createBeneficiary Google Geocode Warning]', gErr);
+    }
+
+    // 2. Fallback to audited municipal coordinates
+    if (!targetLat || !targetLng) {
+      const resolvedCoords = resolveLoanCoordinates({
+        beneficiary: {
+          address_street: data.address_street,
+          address_number: data.address_number,
+          address_neighborhood: data.address_neighborhood,
+          address_city: data.address_city,
+        },
+      });
+      targetLat = resolvedCoords.lat;
+      targetLng = resolvedCoords.lng;
+    }
 
     const { rows } = await pool.query(
       `INSERT INTO rotary.beneficiaries (
@@ -792,8 +817,8 @@ export const pgDataService = {
         data.document_photo_url || null,
         data.proof_of_residence_url || null,
         data.notes || null,
-        resolvedCoords.lat,
-        resolvedCoords.lng,
+        targetLat,
+        targetLng,
       ]
     );
     return mapBeneficiaryRow(rows[0]);

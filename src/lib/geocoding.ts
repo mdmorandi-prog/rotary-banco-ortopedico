@@ -181,3 +181,53 @@ export function buildNavigationUrl(lat: number, lng: number, app: 'google' | 'wa
   }
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 }
+
+/**
+ * Geocodes an exact Farroupilha address using Google Maps Geocoding API
+ * Provides high-precision ROOFTOP / door-number coordinates.
+ */
+export async function geocodeWithGoogle(address: {
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  cep?: string;
+}): Promise<{ lat: number; lng: number; formatted_address?: string; location_type?: string } | null> {
+  const apiKey =
+    process.env.GOOGLE_MAPS_API_KEY ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    'AIzaSyB3PZCsTYgh3ljNAMj5TUDh9cbI70MreEU';
+
+  if (!apiKey) return null;
+
+  const parts = [
+    address.street ? `${address.street}${address.number ? `, ${address.number}` : ''}` : '',
+    address.neighborhood,
+    address.city || 'Farroupilha',
+    address.state || 'RS',
+    address.cep,
+    'Brasil',
+  ].filter(Boolean);
+
+  const query = encodeURIComponent(parts.join(', '));
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${apiKey}`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.status === 'OK' && data.results && data.results.length > 0) {
+      const loc = data.results[0].geometry.location;
+      return {
+        lat: loc.lat,
+        lng: loc.lng,
+        formatted_address: data.results[0].formatted_address,
+        location_type: data.results[0].geometry.location_type,
+      };
+    }
+  } catch (err) {
+    console.error('[Google Geocoding error]', err);
+  }
+  return null;
+}
+
