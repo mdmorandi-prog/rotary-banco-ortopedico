@@ -332,6 +332,18 @@ export async function ensureRotarySchema(): Promise<void> {
         ALTER TABLE rotary.loans ADD COLUMN IF NOT EXISTS last_gps_accuracy NUMERIC(10,2);
         ALTER TABLE rotary.beneficiaries ADD COLUMN IF NOT EXISTS lat NUMERIC(10,6);
         ALTER TABLE rotary.beneficiaries ADD COLUMN IF NOT EXISTS lng NUMERIC(10,6);
+
+        -- Push subscriptions table for PWA Web Push notifications
+        CREATE TABLE IF NOT EXISTS rotary.push_subscriptions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          endpoint TEXT UNIQUE NOT NULL,
+          p256dh TEXT NOT NULL,
+          auth TEXT NOT NULL,
+          user_agent TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
       `);
 
       // Seed basic equipments only if table is empty
@@ -958,7 +970,20 @@ export const pgDataService = {
     });
 
     const hydrated = await this.hydrateLoans(rows);
-    return hydrated[0];
+    const createdLoan = hydrated[0];
+
+    // Push notification to admins on phone
+    try {
+      const { broadcastPushNotification } = await import('../push');
+      broadcastPushNotification({
+        title: '📋 Novo Empréstimo',
+        body: `${createdLoan.beneficiary?.full_name || 'Beneficiário'} retirou ${createdLoan.equipment?.name || createdLoan.loan_code}.`,
+        url: `/loans/${createdLoan.id}`,
+        tag: `loan-${createdLoan.id}`,
+      }).catch((e) => console.warn('[Push] Falha createLoan:', e));
+    } catch {}
+
+    return createdLoan;
   },
 
   async renewLoan(magic_token: string): Promise<RenewLoanResult> {
@@ -1012,6 +1037,18 @@ export const pgDataService = {
     });
 
     const updated = await this.getLoanById(loan.id);
+
+    // Push notification to admins on phone
+    try {
+      const { broadcastPushNotification } = await import('../push');
+      broadcastPushNotification({
+        title: '🔄 Empréstimo Renovado',
+        body: `${updated?.beneficiary?.full_name || 'Beneficiário'} renovou ${updated?.equipment?.name || loan.loan_code} por +30 dias.`,
+        url: `/loans/${loan.id}`,
+        tag: `renew-${loan.id}`,
+      }).catch((e) => console.warn('[Push] Falha renewLoan:', e));
+    } catch {}
+
     return {
       success: true,
       loan: updated || undefined,
@@ -1054,6 +1091,22 @@ export const pgDataService = {
     });
 
     const updated = await this.getLoanById(loan.id);
+
+    // Push notification to admins on phone
+    try {
+      const { broadcastPushNotification } = await import('../push');
+      const benName = updated?.beneficiary?.full_name || loan.beneficiary?.full_name || 'Beneficiário';
+      const eqName = updated?.equipment?.name || loan.equipment?.name || 'Equipamento';
+      broadcastPushNotification({
+        title: intent === 'SEDE' ? '🏢 Aviso de Devolução na Sede' : '🚚 Solicitação de Coleta',
+        body: intent === 'SEDE'
+          ? `${benName} avisou que entregará ${eqName} na sede.`
+          : `${benName} solicitou coleta domiciliar de ${eqName}.`,
+        url: `/loans/${loan.id}`,
+        tag: `return-intent-${loan.id}`,
+      }).catch((e) => console.warn('[Push] Falha notifyReturnIntent:', e));
+    } catch {}
+
     return {
       success: true,
       loan: updated || undefined,
@@ -1113,6 +1166,18 @@ export const pgDataService = {
     });
 
     const updated = await this.getLoanById(loan.id);
+
+    // Push notification to admins on phone
+    try {
+      const { broadcastPushNotification } = await import('../push');
+      broadcastPushNotification({
+        title: '✅ Devolução Concluída',
+        body: `${loan.equipment?.name || loan.loan_code} foi devolvido ao acervo (${triage.condition}).`,
+        url: `/loans/${loan.id}`,
+        tag: `returned-${loan.id}`,
+      }).catch((e) => console.warn('[Push] Falha returnLoan:', e));
+    } catch {}
+
     return {
       success: true,
       loan: updated!,

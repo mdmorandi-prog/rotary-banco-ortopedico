@@ -5,6 +5,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { DesktopHeader } from "@/components/layout/desktop-header";
 import { DemoModeBanner } from "@/components/layout/demo-mode-banner";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { PwaProvider } from "@/components/pwa/pwa-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({
@@ -62,16 +63,18 @@ export default function RootLayout({
         <DemoModeBanner />
 
         <AuthProvider>
-          {/* Desktop Sticky Header - Hidden on Mobile */}
-          <DesktopHeader />
+          <PwaProvider>
+            {/* Desktop Sticky Header - Hidden on Mobile */}
+            <DesktopHeader />
 
-          {/* Main Content Area */}
-          <main className="flex-1 pb-24 md:pb-8 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4">
-            {children}
-          </main>
+            {/* Main Content Area */}
+            <main className="flex-1 pb-24 md:pb-8 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4">
+              {children}
+            </main>
 
-          {/* Mobile Sticky Bottom Navigation with Elevated QR FAB - Hidden on Desktop */}
-          <MobileBottomNav />
+            {/* Mobile Sticky Bottom Navigation with Elevated QR FAB - Hidden on Desktop */}
+            <MobileBottomNav />
+          </PwaProvider>
         </AuthProvider>
 
         {/* Global Toast Notifications */}

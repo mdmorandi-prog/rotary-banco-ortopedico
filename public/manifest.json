@@ -1,12 +1,12 @@
 {
   "name": "Rotary Club - Banco Ortopédico",
   "short_name": "Banco Ortopédico",
-  "description": "Sistema de gestão e rastreabilidade de equipamentos ortopédicos do Rotary com comodato digital, QR Code e automação de renovações",
+  "description": "Sistema de gestão e rastreabilidade de equipamentos ortopédicos do Rotary com comodato digital, QR Code e notificações push",
   "start_url": "/dashboard",
   "id": "/dashboard",
   "display": "standalone",
-  "background_color": "#f8f9fa",
-  "theme_color": "#17458f",
+  "background_color": "#0c2340",
+  "theme_color": "#0c2340",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "pt-BR",
@@ -61,17 +61,17 @@
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Radar de Cobrança",
+      "name": "Radar de Vencimentos",
       "short_name": "Radar",
-      "description": "Monitorar vencimentos e disparar WhatsApp",
+      "description": "Monitorar vencimentos e atrasos",
       "url": "/overdue",
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Acervo de Equipamentos",
-      "short_name": "Acervo",
-      "description": "Catálogo completo e impressão de etiquetas",
-      "url": "/equipments",
+      "name": "Mapa do Acervo",
+      "short_name": "Mapa",
+      "description": "Visualização geográfica dos equipamentos",
+      "url": "/map",
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     }
   ]

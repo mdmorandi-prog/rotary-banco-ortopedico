@@ -257,6 +257,22 @@ async function runDailyLoanVerification(req: NextRequest) {
     }
   }
 
+  // Dispara notificação push para administradores no celular caso haja atrasos ou vencimentos
+  const totalAlerts = transitionedToOverdue + dZeroAlerts + dPlus7Escalations;
+  if (totalAlerts > 0) {
+    try {
+      const { broadcastPushNotification } = await import('@/lib/push');
+      await broadcastPushNotification({
+        title: '⚠️ Radar de Cobrança - Rotary',
+        body: `${totalAlerts} empréstimo(s) exigem atenção ou entraram em atraso hoje. Toque para visualizar.`,
+        url: '/overdue',
+        tag: 'cron-overdue-' + new Date().toISOString().slice(0, 10),
+      });
+    } catch (err) {
+      console.warn('[Push Cron] Falha ao disparar push de atraso:', err);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     executedAt: new Date().toISOString(),

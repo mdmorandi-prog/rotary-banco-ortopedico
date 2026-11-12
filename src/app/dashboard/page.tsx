@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { DEFAULT_CLUB_INFO, STATUS_COLORS, LOAN_STATUS_LABELS } from "@/lib/constants";
 import { RotaryLogo } from "@/components/layout/rotary-logo";
+import { PwaInstallBanner } from "@/components/pwa/pwa-install-banner";
 
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -52,6 +53,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* PWA & Push Notification Activation Banner */}
+      <PwaInstallBanner />
+
       {/* Top Banner / Rotary Welcome */}
       <div className="bg-gradient-to-r from-rotary-blue to-[#0c2340] rounded-2xl p-6 sm:p-8 text-white shadow-md relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 opacity-10 pointer-events-none">

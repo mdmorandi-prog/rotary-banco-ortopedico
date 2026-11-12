@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { RotaryLogo } from "@/components/layout/rotary-logo";
 import { useAuth } from "@/components/auth/auth-provider";
+import { PushNotificationButton } from "@/components/pwa/push-notification-button";
 import { cn } from "@/lib/utils";
 
 export function DesktopHeader() {
@@ -107,6 +108,9 @@ export function DesktopHeader() {
             <QrCode className="w-4 h-4 text-rotary-blue" />
             <span className="hidden xl:inline">Escanear</span>
           </Link>
+
+          {/* Push Notification Toggle Bell */}
+          <PushNotificationButton />
 
           {/* CTA: Novo Empréstimo in Rotary Gold with dark Rotary Blue text (WCAG AA Compliant) */}
           <Link
